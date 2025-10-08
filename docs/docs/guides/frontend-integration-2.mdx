@@ -1,0 +1,87 @@
+---
+id: frontend-integration-2
+title: Frontend Integration
+description: Guide to consuming Apinni-generated types in frontend clients like React, Vue, or Angular.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
+
+Apinni generates type definitions that can be imported into frontend projects for type-safe API calls. This guide covers integration with popular frontend frameworks and tools.
+
+<Admonition type="info" title="Client-Side Benefits">
+Use generated types to catch errors at compile time, improve autocompletion, and enhance DX in your API consumers.
+</Admonition>
+
+## Using with React and Fetch
+
+### Step 1: Generate and Import Types
+
+After running `apinni`, import the types:
+
+```ts title="src/api/client.ts"
+import type { ApiTypes } from '../types/api-types'; // Adjust path
+
+type GetUser = ApiTypes['/users/:id']['GET'];
+
+async function getUser(id: GetUser['request']['params']['id']): Promise<GetUser['responses'][200]> {
+  const response = await fetch(`/users/${id}`);
+  return response.json();
+}
+```
+
+### Step 2: Use in Components
+
+```tsx title="src/components/User.tsx"
+import React, { useState, useEffect } from 'react';
+import { getUser } from '../api/client';
+
+const User = ({ id }: { id: string }) => {
+  const [user, setUser] = useState(null);
+
+  useEffect(() => {
+    getUser(id).then(setUser);
+  }, [id]);
+
+  return <div>{user?.name}</div>;
+};
+```
+
+<Admonition type="tip">
+For better DX, use a type-safe client library like tRPC or react-query with Apinni types.
+</Admonition>
+
+## Using with Axios
+
+Wrap Axios with types:
+
+```ts
+import axios from 'axios';
+import type { ApiTypes } from '../types/api-types';
+
+type GetUser = ApiTypes['/users/:id']['GET'];
+
+async function getUser(id: GetUser['request']['params']['id']): Promise<GetUser['responses'][200]> {
+  const { data } = await axios.get(`/users/${id}`);
+  return data;
+}
+```
+
+## Integration with Other Frameworks
+
+- **Vue**: Use in composables or Pinia stores.
+- **Angular**: Inject types into services.
+- **Svelte**: Use in stores or endpoints.
+
+Share types via a monorepo or NPM package for multi-app setups.
+
+<Admonition type="warning">
+Ensure types are regenerated on backend changes.
+</Admonition>
+
+For advanced setups, see [Best Practices](/docs/guides/best-practices).
+
+<Admonition type="info">
+Explore examples on [GitHub](https://github.com/apinni/apinni/examples).
+</Admonition>

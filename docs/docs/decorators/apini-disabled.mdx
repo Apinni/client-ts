@@ -1,0 +1,218 @@
+---
+id: apinni-disabled
+title: ApinniDisabled
+description: Learn how to use the @ApinniDisabled decorator to exclude classes or methods from type generation, globally or for specific domains, in your Apinni project.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
+
+# ApinniDisabled
+
+The `@ApinniDisabled` decorator excludes a class or method from the Apinni type generation process, either globally or for specific domains. It provides fine-grained control over which endpoints are included in generated type definition files (e.g., `auth-types.d.ts`), making it ideal for managing deprecated endpoints, experimental features, or domain-specific exclusions. This decorator works with [`@ApinniController`](/docs/decorators/apinni-controller), [`@ApinniEndpoint`](/docs/decorators/apinni-endpoint), and [`@ApinniDomain`](/docs/decorators/apinni-domain) to customize type generation.
+
+<Admonition type="info" title="Key Features">
+- Excludes classes or methods from type generation globally or for specific domains.
+- Supports a wildcard (`*`) to affect across all domains.
+- Allows optional reasons for exclusion to document intent.
+- Enhances modularity by controlling type generation scope.
+</Admonition>
+
+## Syntax
+
+Use the `@ApinniDisabled` decorator to annotate a class or method, specifying whether to exclude it globally or for specific domains.
+
+```ts title="Basic Syntax"
+import { ApinniDisabled } from 'apinni';
+
+// Global exclusion
+@ApinniDisabled({ disabled: true, reason: 'Deprecated' })
+class OldController {}
+
+// Domain-specific exclusion
+@ApinniDomain({ domains: ['auth', 'api']})
+@ApinniDisabled({ domains: { auth: true, api: false }, reason: 'Auth-specific exclusion' })
+class AuthController {}
+```
+
+## Options
+
+The decorator accepts an options object with one of two possible shapes:
+
+| Property   | Type                                                                 | Description                                                                 |
+|------------|----------------------------------------------------------------------|-----------------------------------------------------------------------------|
+| `disabled` | `boolean`                                                            | Set to `true` to exclude the class or method from all type generation (default: `true` if no options provided). Used for global exclusion. |
+| `domains`  | `Partial<{ '*': boolean; [domain: string]: boolean }>`                | An object specifying domains to exclude (e.g., `{ auth: true, api: false }`). Use `'*'` for all domains. Overrides `disabled` if specified. |
+| `reason`   | `string`                                                             | Optional explanation for exclusion (e.g., `'Deprecated'`, `'Internal use only'`). |
+
+<Admonition type="tip">
+Use the `reason` option to document why a class or method is excluded, improving team collaboration and code maintainability.
+</Admonition>
+
+<Admonition type="warning">
+When using `domains`, ensure domain names match those defined in `@ApinniDomain` to avoid unexpected behavior. The `'*'` wildcard takes precedence if no specific domain is defined.
+</Admonition>
+
+## Type Generation Exclusion
+
+The `@ApinniDisabled` decorator allows you to control type generation at two levels:
+- **Global Exclusion**: Using `{ disabled: true }` excludes the class or method from all generated type files, regardless of domains.
+- **Domain-Specific Exclusion**: Using `{ domains: { [domain]: boolean } }` excludes the class or method from specific domains’ type files (e.g., `auth-types.d.ts`). The `'*'` key applies to all domains if no specific domain is defined.
+
+When a class is disabled, all its endpoints are excluded unless overridden by method-level `@ApinniDisabled` decorators. Method-level settings take precedence over class-level settings for specific domains.
+
+## Usage with ApinniController, ApinniEndpoint, and ApinniDomain
+
+The `@ApinniDisabled` decorator can be applied to a controller class (to exclude all its endpoints) or to individual methods (to exclude specific endpoints). It integrates with `@ApinniDomain` to control which domains’ type files include the endpoints.
+
+### Example 1: Global Exclusion of an Endpoint
+
+Exclude a specific endpoint from all type generation.
+
+```ts title="Global Endpoint Exclusion"
+import { ApinniController, ApinniEndpoint, ApinniDisabled } from 'apinni';
+
+@ApinniController({ path: '/api' })
+class UserController {
+  @ApinniEndpoint({ path: '/users', method: 'GET' })
+  getUsers() {
+    return [{ id: 1, name: 'Alice' }];
+  }
+
+  @ApinniDisabled({ disabled: true, reason: 'Deprecated' })
+  @ApinniEndpoint({ path: '/old-users', method: 'GET' })
+  getOldUsers() {
+    return [];
+  }
+}
+```
+
+<Admonition type="info" title="example">
+- **Included Endpoint**: `/api/users` (GET, included in type generation)
+- **Excluded Endpoint**: `/api/old-users` (GET, excluded globally due to `@ApinniDisabled`)
+- **Generated Types**: Only `getUsers` types appear in the generated `.d.ts` files
+</Admonition>
+
+### Example 2: Global Exclusion of a Controller
+
+Exclude an entire controller from type generation.
+
+```ts title="Global Controller Exclusion"
+import { ApinniController, ApinniEndpoint, ApinniDisabled } from 'apinni';
+
+@ApinniDisabled({ disabled: true, reason: 'Legacy controller' })
+@ApinniController({ path: '/legacy' })
+class LegacyController {
+  @ApinniEndpoint({ path: '/users', method: 'GET' })
+  getUsers() {
+    return [{ id: 1, name: 'Bob' }];
+  }
+}
+```
+
+<Admonition type="info" title="example">
+- **Excluded Controller**: `LegacyController` (all endpoints excluded globally)
+- **Generated Types**: No types generated for `/legacy/users` or any other endpoints
+</Admonition>
+
+### Example 3: Domain-Specific Exclusion
+
+Exclude an endpoint from specific domains while including it in others.
+
+<Tabs>
+  <TabItem value="domain-specific" label="Domain-Specific Exclusion" default>
+    ```ts title="Domain-Specific Endpoint Exclusion"
+    import { ApinniController, ApinniEndpoint, ApinniDomain, ApinniDisabled } from 'apinni';
+
+    type LoginRequest = { username: string; password: string };
+    type LoginResponse = { token: string };
+
+    @ApinniDomain({ domains: ['auth', 'api'] })
+    @ApinniController({ path: '/auth' })
+    class AuthController {
+      @ApinniEndpoint({
+        path: '/login',
+        method: 'POST',
+        request: { model: 'LoginRequest' },
+        responses: { 200: { model: 'LoginResponse' } }
+      })
+      login() {
+        return { token: 'abc123' };
+      }
+
+      @ApinniDisabled({ domains: { auth: true, api: false }, reason: 'Auth-specific exclusion' })
+      @ApinniEndpoint({ path: '/signup', method: 'POST' })
+      signup() {
+        return { message: 'Signed up successfully' };
+      }
+    }
+    ```
+
+    <Admonition type="info" title="example">
+    - **Domains**: `auth`, `api`
+    - **Generated Files**: `auth-types.d.ts`, `api-types.d.ts`
+    - **Included Endpoint**: `/auth/login` (POST, included in both `auth-types.d.ts` and `api-types.d.ts`)
+    - **Excluded Endpoint**: `/auth/signup` (POST, excluded from `auth-types.d.ts`, included in `api-types.d.ts`)
+    - **Generated Types**: `login` types in both files; `signup` types only in `api-types.d.ts`
+    </Admonition>
+  </TabItem>
+</Tabs>
+
+### Example 4: Wildcard Domain Exclusion
+
+Use the `'*'` wildcard to exclude an endpoint from all domains.
+
+```ts title="Wildcard Domain Exclusion"
+import { ApinniController, ApinniEndpoint, ApinniDomain, ApinniDisabled } from 'apinni';
+
+@ApinniDomain({ domains: ['auth', 'api'] })
+@ApinniController({ path: '/auth' })
+class AuthController {
+  @ApinniEndpoint({ path: '/login', method: 'POST' })
+  login() {
+    return { token: 'abc123' };
+  }
+
+  @ApinniDisabled({ domains: { '*': true }, reason: 'Experimental feature' })
+  @ApinniEndpoint({ path: '/reset-password', method: 'POST' })
+  resetPassword() {
+    return { message: 'Password reset initiated' };
+  }
+}
+```
+
+<Admonition type="info" title="example">
+- **Domains**: `auth`, `api`
+- **Generated Files**: `auth-types.d.ts`, `api-types.d.ts`
+- **Included Endpoint**: `/auth/login` (POST, included in both type files)
+- **Excluded Endpoint**: `/auth/reset-password` (POST, excluded from all domains due to `'*': true`)
+- **Generated Types**: Only `login` types included in `auth-types.d.ts` and `api-types.d.ts`
+</Admonition>
+
+## Usage Notes
+
+- **Global vs. Domain-Specific**: Use `disabled: true` for global exclusion or `domains` for specific domains. The `'*': true` wildcard in `domains` is equivalent to `disabled: true` if no specific domains are defined.
+- **Precedence**: Method-level `@ApinniDisabled` settings override class-level settings for specific domains.
+- **Reason Documentation**: Include a `reason` to clarify the exclusion intent, especially for deprecated or experimental endpoints.
+- **Compatibility**: Use with `@ApinniController`, `@ApinniEndpoint`, and `@ApinniDomain` to control type generation scope.
+- **Default Behavior**: If no options are provided, the decorator defaults to `{ disabled: true }`, excluding the class or method globally.
+
+<Admonition type="info">
+You can use `'*'` wildcard with specific domains for shorten rules, e.g: `domains: { '*': true, auth: false }`. So
+in this case endpoint (or controller) will be excluded from all domains except `auth`.
+</Admonition>
+
+<Admonition type="tip" title="Try It Out">
+Explore these examples in a live TypeScript environment: [CodeSandbox Link](#).
+</Admonition>
+
+## Related Topics
+
+- [ApinniController](/docs/decorators/apinni-controller) – Define controllers with base paths.
+- [ApinniEndpoint](/docs/decorators/apinni-endpoint) – Define individual endpoints within a controller.
+- [ApinniDomain](/docs/decorators/apinni-domain) – Group endpoints into domains for type generation.
+
+<Admonition type="info">
+For advanced use cases, check the [Apinni API Reference](/docs/api-reference) or contact the [Apinni community](https://community.apinni.dev).
+</Admonition>

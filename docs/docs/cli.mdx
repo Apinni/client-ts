@@ -1,0 +1,121 @@
+---
+id: cli
+title: Apinni CLI
+description: Guide to using the Apinni CLI for type generation, including commands, configuration, and troubleshooting.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
+
+The Apinni CLI (`apinni`) is the primary tool for generating type definitions from your decorated TypeScript code. It supports various commands, flags, and configuration options to fit your workflow. This document covers CLI usage, including running in watch mode, custom configurations, and common troubleshooting steps.
+
+<Admonition type="info" title="CLI Overview">
+The `apinni` CLI processes your project's controllers and endpoints, compiling TypeScript and generating type files. It's designed for ease of use in development and build pipelines.
+</Admonition>
+
+## Basic Usage
+
+Run the CLI directly via `npx` or through scripts in `package.json`.
+
+### Running Generation
+
+<Tabs groupId="package-manager">
+  <TabItem value="npm" label="npm" default>
+    ```sh
+    npm run apinni generate
+    ```
+  </TabItem>
+  <TabItem value="yarn" label="Yarn">
+    ```sh
+    yarn apinni generate
+    ```
+  </TabItem>
+  <TabItem value="pnpm" label="pnpm">
+    ```sh
+    pnpm run apinni generate
+    ```
+  </TabItem>
+</Tabs>
+
+This command scans for files, processes decorators, and outputs type definitions.
+
+### Running in Watch Mode
+
+For development, use the watch command:
+
+<Tabs groupId="package-manager">
+  <TabItem value="npm" label="npm" default>
+    ```sh
+    npm run apinni watch
+    ```
+  </TabItem>
+  <TabItem value="yarn" label="Yarn">
+    ```sh
+    yarn apinni watch
+    ```
+  </TabItem>
+  <TabItem value="pnpm" label="pnpm">
+    ```sh
+    pnpm run apinni watch
+    ```
+  </TabItem>
+</Tabs>
+
+This monitors file changes and regenerates types automatically.
+
+<Admonition type="tip">
+Since it relies on `Chokidar` - no need for extra dev-server running.
+</Admonition>
+
+## Commands and Flags
+
+The CLI supports the following commands:
+- `generate`: Generate types with decorators (one-time run).
+- `watch`: Run in watch mode for automatic regeneration on changes.
+
+### Flags
+
+Flags are command-specific. The `generate` command supports the following flags:
+
+| Flag         | Description                                                                 | Shortcut |
+|--------------|-----------------------------------------------------------------------------|---------|
+| `--use-existing-build`   | Skips compilation step (if run-time decorators defined). Instead uses existing build folder defined in tsconfig.json                  | `-u` |
+| `--verbose`  | Enable detailed logging for debugging.                                      | `-v` |
+
+Global flags:
+
+| Flag         | Description                                                                 | Shortcut |
+|--------------|-----------------------------------------------------------------------------|---------|
+| `--help`     | Display help information.                                                   | `-h` |
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue                        | Solution                                                                 |
+|------------------------------|--------------------------------------------------------------------------|
+| **Command not found**        | Ensure `apinni` is installed as a dev dependency.                        |
+| **No files processed**       | Check `include` patterns and ensure decorators are used.                 |
+| **Permission errors**        | Run with appropriate permissions or check file paths.                    |
+| **High memory usage**        | Limit include patterns for large projects.           |
+
+### Debugging
+
+- Use `--verbose` for logs (if enabled in your setup).
+- Verify `tsconfig.json` settings.
+- Clear cache if issues persist: `rm -rf node_modules/.cache`.
+
+<Admonition type="warning">
+Always compile your project before running `apinni generate` if using `--use-existing-build` flag.
+</Admonition>
+
+## Advanced Usage
+
+Integrate with build tools like Webpack or Vite by running `apinni generate --use-existing-build` in after-build scripts.
+
+For more, see [Guides](/docs/guides/best-practices).
+
+<Admonition type="info">
+Report CLI issues on [GitHub](https://github.com/apinni/apinni/issues).
+</Admonition>

@@ -1,0 +1,230 @@
+---
+id: installation
+title: Installation and Setup
+description: Learn how to install and configure the apinni package for type-safe API generation in your TypeScript project.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
+
+# Installation and Setup
+
+The `apinni` package enables type-safe API generation for TypeScript projects, integrating with decorators like [`@ApinniController`](/docs/decorators/apinni-controller), [`@ApinniEndpoint`](/docs/decorators/apinni-endpoint), [`@ApinniDomain`](/docs/decorators/apinni-domain), and [`@ApinniDisabled`](/docs/decorators/apinni-disabled). This guide covers the prerequisites, installation, setup, and running of `apinni` in your project, along with configuration options and troubleshooting tips.
+
+<Admonition type="info" title="What is Apinni?">
+Apinni is a powerful tool for generating type definitions from TypeScript controllers and endpoints, ensuring type safety and streamlined API development. It’s ideal for projects requiring robust API documentation and client-side type integration.
+</Admonition>
+
+## Prerequisites
+
+Before installing `apinni`, ensure your project meets the following requirements:
+
+| Requirement          | Version/Description                                      |
+|---------------------|--------------------------------------------------------|
+| **Node.js**         | >= 18 (LTS recommended for stability)                 |
+| **TypeScript**      | >= 4.5 (with a valid `tsconfig.json`)                 |
+| **Package Manager** | npm, Yarn, or pnpm                                    |
+| **Project Setup**   | A TypeScript project with decorators enabled (`experimentalDecorators` and `emitDecoratorMetadata` in `tsconfig.json`) |
+
+### Configuring tsconfig.json
+
+Ensure your `tsconfig.json` includes the following settings to support Apinni’s decorator-based workflow:
+
+```json title="tsconfig.json"
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "strict": true
+  }
+}
+```
+
+<Admonition type="warning">
+Apinni relies on TypeScript decorators. Omitting `experimentalDecorators` or `emitDecoratorMetadata` in `tsconfig.json` will cause type generation to fail.
+</Admonition>
+
+## Installation
+
+Install `apinni` as a development dependency using your preferred package manager.
+
+<Tabs groupId="package-manager">
+  <TabItem value="npm" label="npm" default>
+    ```sh
+    npm install apinni --save-dev
+    ```
+  </TabItem>
+  <TabItem value="yarn" label="Yarn">
+    ```sh
+    yarn add -D apinni
+    ```
+  </TabItem>
+  <TabItem value="pnpm" label="pnpm">
+    ```sh
+    pnpm add -D apinni
+    ```
+  </TabItem>
+</Tabs>
+
+<Admonition type="tip">
+Installing `apinni` as a dev dependency (`--save-dev`, `-D`) is recommended, as it’s typically used during development for type generation.
+</Admonition>
+
+## Setup
+
+To integrate `apinni` into your project, add a script to your `package.json` to run the type generation command.
+
+### Step 1: Add apinni Script
+
+Modify your `package.json` to include a `apinni` script:
+
+```json title="package.json"
+{
+  "scripts": {
+    "apinni": "apinni"
+  }
+}
+```
+
+### Step 2: Create a Controller
+
+Create a basic controller using Apinni decorators to test the setup. For example:
+
+```ts title="src/controllers/user.controller.ts"
+import { ApinniController, ApinniEndpoint } from 'apinni';
+
+@ApinniController({ path: '/api/users' })
+class UserController {
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  getUserById() {
+    return { id: '123', name: 'Alice' };
+  }
+}
+```
+
+### Step 3: Run Apinni
+
+Run the `apinni` command to generate type definitions:
+
+<Tabs groupId="package-manager">
+  <TabItem value="npm" label="npm" default>
+    ```sh
+    npm run apinni
+    ```
+  </TabItem>
+  <TabItem value="yarn" label="Yarn">
+    ```sh
+    yarn apinni
+    ```
+  </TabItem>
+  <TabItem value="pnpm" label="pnpm">
+    ```sh
+    pnpm run apinni
+    ```
+  </TabItem>
+</Tabs>
+
+This generates type definition files (e.g., `api-types.d.ts`) in your project’s output directory, based on your controllers and endpoints.
+
+<Admonition type="info" title="example">
+**Output**: After running `apinni`, a file like `api-types.d.ts` will be generated, containing type definitions for the `/api/users/:id` endpoint.
+</Admonition>
+
+## Configuration Options
+
+Customize `apinni` by adding options to the `apinni` script in `package.json` or using a configuration file.
+
+### Option 1: Command-Line Options
+
+Add flags to the `apinni` script in `package.json`:
+
+```json title="package.json"
+{
+  "scripts": {
+    "apinni": "apinni --outDir ./types --watch"
+  }
+}
+```
+
+| Flag         | Description                                                                 |
+|--------------|-----------------------------------------------------------------------------|
+| `--outDir`   | Specifies the output directory for generated type files (default: `./types`). |
+| `--watch`    | Runs `apinni` in watch mode, regenerating types on file changes.             |
+| `--config`   | Path to a custom configuration file (e.g., `apinni.config.json`).            |
+
+### Option 2: Configuration File
+
+Create a `apinni.config.json` file in your project root:
+
+```json title="apinni.config.json"
+{
+  "outDir": "./types",
+  "include": ["src/controllers/**/*.ts"],
+  "exclude": ["src/controllers/**/test/*.ts"],
+  "watch": false
+}
+```
+
+| Property   | Type            | Description                                                                 |
+|------------|-----------------|-----------------------------------------------------------------------------|
+| `outDir`   | `string`        | Directory for generated type files (e.g., `./types`).                        |
+| `include`  | `string[]`      | Glob patterns for files to process (e.g., `["src/controllers/**/*.ts"]`).    |
+| `exclude`  | `string[]`      | Glob patterns for files to ignore.                                           |
+| `watch`    | `boolean`       | Enable watch mode for continuous type generation.                            |
+
+Run with the configuration file:
+
+```sh
+npx apinni --config apinni.config.json
+```
+
+<Admonition type="tip" title="Try It Out">
+Experiment with a sample Apinni project in a live TypeScript environment: [CodeSandbox Link](#).
+</Admonition>
+
+## Troubleshooting
+
+### Common Issues
+
+| Issue                              | Solution                                                                 |
+|------------------------------------|--------------------------------------------------------------------------|
+| **No types generated**             | Ensure `tsconfig.json` has `experimentalDecorators` and `emitDecoratorMetadata` enabled. Check that controllers use `@ApinniController`. |
+| **Types generated in wrong directory** | Verify the `--outDir` flag or `outDir` in `apinni.config.json`.          |
+| **Decorator errors**               | Confirm `apinni` is installed and imported correctly (`import { ApinniController } from 'apinni'`). |
+| **Watch mode not working**         | Ensure `--watch` is added to the script or `watch: true` in the config file. |
+
+### Debugging Tips
+
+- Run `apinni` with `--verbose` to see detailed logs:
+  ```sh
+  npx apinni --verbose
+  ```
+- Check the output directory for generated `.d.ts` files.
+- Verify that your `tsconfig.json` includes the correct `include` and `exclude` patterns.
+
+<Admonition type="warning">
+Ensure your TypeScript project is compiled with `tsc` or a compatible build tool before running `apinni`, as it relies on TypeScript metadata.
+</Admonition>
+
+## Next Steps
+
+- **Define Controllers**: Learn how to create controllers with [`@ApinniController`](/docs/decorators/apinni-controller).
+- **Add Endpoints**: Define endpoints using [`@ApinniEndpoint`](/docs/decorators/apinni-endpoint).
+- **Organize Types**: Group endpoints with [`@ApinniDomain`](/docs/decorators/apinni-domain).
+- **Exclude Endpoints**: Use [`@ApinniDisabled`](/docs/decorators/apinni-disabled) for selective type generation.
+
+## Related Topics
+
+- [ApinniController](/docs/decorators/apinni-controller) – Define controllers with base paths.
+- [ApinniEndpoint](/docs/decorators/apinni-endpoint) – Define individual endpoints within a controller.
+- [ApinniDomain](/docs/decorators/apinni-domain) – Group endpoints into domains for type generation.
+- [ApinniDisabled](/docs/decorators/apinni-disabled) – Exclude classes or methods from type generation.
+
+<Admonition type="info">
+For advanced use cases, check the [Apinni API Reference](/docs/api-reference) or contact the [Apinni community](https://community.apinni.dev).
+</Admonition>

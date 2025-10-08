@@ -1,0 +1,238 @@
+---
+id: creating-plugins
+title: Creating Plugins
+description: Step-by-step guide to building custom plugins for Apinni.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
+
+This guide covers creating plugins, configuring them in your project, and managing dependencies, complementing the core decorators.
+
+## Plugin Configuration
+
+Define a plugin using the `ApinniPlugin` interface. The configuration includes:
+
+| Property       | Type                          | Description                                                                 |
+|----------------|-------------------------------|-----------------------------------------------------------------------------|
+| `name`         | `string`                      | Unique identifier for the plugin.                                           |
+| `config`       | `{ shareable?: boolean }`     | Optional settings; set `shareable: true` to allow use as a dependency.       |
+| `hooks`        | Object with lifecycle hooks   | Functions for each lifecycle stage (see above).                             |
+| `dependencies` | `Dependency[]`                | Array of dependent plugins with optional `allowContextManipulation` option.  |
+
+### Dependency Options
+
+When a plugin depends on another, it can specify:
+
+| Property                   | Type      | Description                                                                 |
+|----------------------------|-----------|-----------------------------------------------------------------------------|
+| `plugin`                   | `ShareablePlugin` | The dependent plugin (must have `shareable: true`).                  |
+| `options.allowContextManipulation` | `boolean` | If `true`, allows the dependency to manipulate the global context.   |
+
+<Admonition type="warning">
+Dependencies must be shareable plugins. Non-shareable dependencies will throw an error during plugin resolution.
+</Admonition>
+
+## Creating a Plugin
+
+### Example 1: Basic Plugin
+
+Create a simple plugin that logs endpoint paths during type generation.
+
+```ts title="Simple plugin"
+import { buildPlugin } from 'apinni';
+
+const testContext = new Map<any, string>();
+
+export const SimplePlugin = buildPlugin({
+    name: 'my-simple-plugin',
+    hooks: {
+        onInitialize: registry =>
+            registry.register({
+                name: 'CustomDecorator',
+                variant: 'class',
+                type: 'run-time',
+                handler: (event, params) => {
+                    if (event === 'register') {
+                        return testContext.set(
+                            params.target,
+                            'target_registered'
+                        );
+                    }
+
+                    if (event === 'unregister') {
+                        return testContext.delete(params.target);
+                    }
+                },
+            }),
+        onAfterDecoratorsProcessed: () => {
+            for (const key of testContext.keys()) {
+                const currentValue = testContext.get(key);
+
+                testContext.set(key, `${currentValue}_modified`);
+            }
+        },
+        onRegisterMetadata: context => {
+            for (const [target, value] of testContext.entries())
+                context.registerClassMetadata(target, {
+                    custom_property: value,
+                });
+        },
+        onGenerateTypes: async ({ classMetadata }) => {
+            if (
+                classMetadata.find(meta =>
+                    Boolean(meta.custom_property)
+                )
+            ) {
+                testContext.clear();
+            }
+        },
+    },
+});
+```
+
+<Admonition type="warning">
+Make sure to handle `unregister` event since it will be called in `watch` mode. File changes
+requires to fully re-init affected file(s), so `apinni` executes immediatly `unregister` and `register` events for all
+decorators defined in affected files.
+</Admonition>
+
+### Example 2: Shareable Plugin with Custom Context
+
+Create a shareable plugin that provides custom context data to dependent plugins.
+
+```ts title="Shareable plugin"
+import { buildPlugin } from 'apinni';
+
+const testContext = new Map<any, string>();
+
+export const CustomShareablePlugin = buildPlugin({
+    name: 'my-shareable-plugin',
+    config: {
+        shareable: true,
+    },
+    hooks: {
+        onInitialize: registry => {
+            registry.register({
+                name: 'CustomDecorator',
+                type: 'compile-time',
+                variant: 'class',
+                handler: (_, params) => {
+                    testContext.set(params.target, {
+                        sharedProperty: 'test',
+                    });
+                },
+            });
+        },
+        onProvideSharedContext: () => ({
+            data: testContext,
+        }),
+    },
+});
+```
+
+### Example 3: Plugin with Dependencies
+
+Create a plugin that depends on the previous `custom-shareable` plugin and uses its shared context.
+
+```ts title="Plugin with dependencies"
+import { ApinniPlugin } from 'apinni';
+import { CustomShareablePlugin } from './custom-shareable-plugin';
+
+const testContext = new Map<
+    any,
+    {
+        original: string;
+        shared: string | null;
+    }
+>();
+
+const PluginWithDependencies = buildPlugin({
+    name: 'my-plugin-with-dependencies',
+    config: {
+        shareable: false,
+    },
+    dependencies: [
+        {
+            plugin: CustomShareablePlugin,
+        },
+    ],
+    hooks: {
+        onInitialize: registry =>
+            ["FirstDecorator", "SecondDecorator"].map(
+                decoratorName =>
+                    registry.register({
+                        name: decoratorName,
+                        type: 'compile-time',
+                        variant: 'class',
+                        handler: (event, params) => {
+                            if (event === 'register') {
+                                return temporalContext.set(
+                                    params.target,
+                                    'registered'
+                                );
+                            }
+                        },
+                    })
+            ),
+        onConsumeDependencyContexts([sharedContext]) {
+            for (const [target, value] of temporalContext.entries()) {
+                const sharedContextValue =
+                    sharedContext.data.get(target);
+
+                testContext.set(target, {
+                    original: value,
+                    shared: sharedContextValue?.sharedProperty ?? null,
+                });
+            }
+        },
+    },
+}),
+```
+
+## Configuring Plugins
+
+Add plugins to your Apinni configuration in `apinni.config.json`.
+
+```ts title="apinni.config.ts"
+import { SimplePlugin, PluginWithDependencies } from './my-plugins';
+
+export default {
+  plugins: [SimplePlugin, PluginWithDependencies],
+}
+```
+
+<Admonition type="warning">
+Ensure plugins are loaded in the correct order to resolve dependencies. Apinni automatically handles topological sorting to prevent circular dependencies.
+</Admonition>
+
+## Running Plugins
+
+Run the `apinni` command to execute the plugin lifecycle. The pipeline executes preparation, core processing, and finalization steps.
+
+## Usage Notes
+
+- **Shareable Plugins**: Set `shareable: true` in the `config` to allow a plugin to be used as a dependency.
+- **Dependency Restrictions**: Dependencies cannot manipulate the global context unless `allowContextManipulation: true`.
+- **Error Handling**: Ensure unique names and valid dependencies.
+- **Context Manipulation**: Be cautious to avoid conflicts.
+
+<Admonition type="tip" title="Try It Out">
+Experiment with Apinni plugins in a live TypeScript environment: [CodeSandbox Link](#).
+</Admonition>
+
+## Troubleshooting
+
+| Issue                              | Solution                                                                 |
+|------------------------------------|--------------------------------------------------------------------------|
+| **Plugin not loaded**              | Verify the plugin listed in your config file.       |
+| **Circular dependency error**      | Check plugin dependencies for cycles and reorder or remove conflicting dependencies. |
+| **Shared context not found**       | Ensure dependency plugins have `shareable: true` and implement `onProvideSharedContext`. |
+| **Metadata not registered**        | Confirm `allowContextManipulation: true` for dependencies if they need to modify context. |
+
+Use the `--verbose` flag for detailed logs.
+
+<Admonition type="info">
+For advanced use cases, check the [API Reference](/docs/api-reference/overview).
+</Admonition>

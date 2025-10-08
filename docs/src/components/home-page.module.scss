@@ -1,0 +1,547 @@
+// app-native.module.scss
+
+// =========================================
+// VARIABLES & THEME
+// =========================================
+
+// Dark theme variables
+html[data-theme='dark'] {
+  .app {
+    --bg-primary: rgb(15 23 42);
+    --bg-gradient-start: #0f172a;
+    --bg-gradient-mid: rgb(30 58 138 / 0.2);
+    --bg-gradient-end: rgb(49 46 129 / 30%);
+    --text-primary: rgb(241 245 249);
+    --text-secondary: rgb(203 213 225);
+    --overlay-mask-start: rgba(15, 23, 42, 0.8);
+    --overlay-mask-end: rgba(15, 23, 42, 0.2);
+    --border-outline: rgb(148, 163, 184);
+    --border-outline-secondary: rgb(148, 163, 184);
+    --bg-primary-button: #2563eb;
+    --bg-primary-button-hover: #1d4ed8;
+    --bg-outline-button: rgba(255, 255, 255, 0);
+    --bg-outline-hover: rgba(148, 163, 184, 0.1);
+    --border-outline-hover: rgb(100, 116, 139);
+    --section-bg-quick: rgb(30 41 59 / 0.5); // slate-800/50
+    --section-bg-features: rgb(15 23 42); // slate-900
+    --card-bg: rgb(30 41 59); // slate-800
+    --card-border: rgb(51 65 85); // slate-700
+    --card-hover-bg: rgb(30 41 55); // slate-700
+    --card-hover-border: rgb(71 85 105); // slate-600
+    --step-icon-bg: rgb(51 65 85); // slate-700
+    --step-icon-text: rgb(96 165 250); // blue-400
+
+    .logo-light {
+      display: none !important;
+    }
+
+    // Dark theme icon colors
+    .icon--blue {
+      color: rgb(147 197 253);
+      background-color: rgb(30 58 138 / 0.2);
+      border-color: rgb(30 64 175);
+    }
+
+    .icon--green {
+      color: rgb(110 231 183);
+      background-color: rgb(6 78 59 / 0.2);
+      border-color: rgb(6 95 70);
+    }
+
+    .icon--yellow {
+      color: rgb(252 211 77);
+      background-color: rgb(120 53 15 / 0.2);
+      border-color: rgb(146 64 14);
+    }
+
+    .icon--purple {
+      color: rgb(216 180 254);
+      background-color: rgb(88 28 135 / 0.2);
+      border-color: rgb(107 33 168);
+    }
+  }
+}
+
+// Light theme variables
+html[data-theme='light'] {
+  .app {
+    --bg-primary: rgb(248 250 252);
+    --bg-gradient-start: #f8fafc;
+    --bg-gradient-mid: rgb(30 58 138 / 0.05);
+    --bg-gradient-end: rgb(49 46 129 / 0.1);
+    --text-primary: rgb(30 41 59);
+    --text-secondary: rgb(71 85 105);
+    --overlay-mask-start: rgba(248, 250, 252, 0.8);
+    --overlay-mask-end: rgba(248, 250, 252, 0.2);
+    --border-outline: rgba(71, 85, 105, 0);
+    --border-outline-secondary: rgba(71, 85, 105, 1);
+    --bg-primary-button: #2563eb;
+    --bg-primary-button-hover: #1d4ed8;
+    --bg-outline-button: rgb(255 255 255);
+    --bg-outline-hover: rgba(71, 85, 105, 0.1);
+    --border-outline-hover: rgb(51 65 85);
+    --section-bg-quick: rgb(248 250 252); // slate-50
+    --section-bg-features: rgb(255 255 255); // white
+    --card-bg: rgb(255 255 255); // white
+    --card-border: rgb(226 232 240); // slate-200
+    --card-hover-bg: rgb(248 250 252); // slate-50
+    --card-hover-border: rgb(203 213 225); // slate-300
+    --step-icon-bg: rgb(239 246 255); // blue-50
+    --step-icon-text: rgb(37 99 235); // blue-600
+
+    .logo-dark {
+      display: none !important;
+    }
+
+    .icon--blue {
+      color: rgb(59 130 246);
+      background-color: rgb(219 234 254 / 0.2);
+      border-color: rgb(96 165 250);
+    }
+
+    .icon--green {
+      color: rgb(16 185 129);
+      background-color: rgb(209 250 229 / 0.2);
+      border-color: rgb(34 197 94);
+    }
+
+    .icon--yellow {
+      color: rgb(245 158 11);
+      background-color: rgb(254 252 232 / 0.2);
+      border-color: rgb(251 191 36);
+    }
+
+    .icon--purple {
+      color: rgb(139 92 246);
+      background-color: rgb(237 233 254 / 0.2);
+      border-color: rgb(168 85 247);
+    }
+  }
+}
+
+// =========================================
+// MIXINS
+// =========================================
+
+@mixin button-base {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 1rem 1.5rem;
+  border: none;
+  border-radius: 0.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  svg {
+    flex-shrink: 0;
+  }
+}
+
+@mixin card-base {
+  position: relative;
+  padding: 1.5rem;
+  border-radius: 0.75rem;
+  transition: all 0.3s ease;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+
+  &:hover {
+    border-color: var(--card-hover-border);
+    background: var(--card-hover-bg);
+
+    @media (prefers-reduced-motion: no-preference) {
+      box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    }
+  }
+}
+
+@mixin container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 80rem;
+  margin: 0 auto;
+  gap: 1.5rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+
+  @media (min-width: 640px) {
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  @media (min-width: 1024px) {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+
+// =========================================
+// BASE STYLES
+// =========================================
+
+.app {
+  background: var(--bg-primary);
+  width: 100%;
+}
+
+.link {
+  text-decoration: none;
+}
+
+// =========================================
+// HERO SECTION
+// =========================================
+
+.hero {
+  position: relative;
+  padding: 4rem 0 6rem;
+  background-image: linear-gradient(to bottom right, var(--bg-gradient-start), var(--bg-gradient-mid), var(--bg-gradient-end));
+  min-height: calc(100vh - 60px);
+
+  @media (max-width: 768px) {
+    padding: 2rem 0 4rem;
+  }
+}
+
+.overlay {
+  position: absolute;
+  z-index: -10;
+  inset: 0;
+  mask-image: linear-gradient(0deg, var(--overlay-mask-start), var(--overlay-mask-end));
+  -webkit-mask-image: linear-gradient(0deg, var(--overlay-mask-start), var(--overlay-mask-end));
+}
+
+.hero__content {
+  text-align: center;
+}
+
+.hero__container {
+  @include container;
+
+  &--small {
+    max-width: 56rem;
+    margin: 0 auto;
+  }
+}
+
+.logo {
+  max-width: 240px;
+  margin-bottom: 0;
+
+  img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+
+  @media (min-width: 768px) {
+    max-width: 320px;
+  }
+}
+
+.hero__title {
+  font-size: clamp(2.5rem, 5vw, 3.75rem);
+  line-height: 1;
+  margin-bottom: 0;
+  font-weight: bold;
+  color: var(--text-primary);
+}
+
+.title-gradient {
+  background-image: linear-gradient(to right, #2563eb, #4f46e5);
+  background-clip: text;
+  color: transparent;
+  -webkit-background-clip: text;
+}
+
+.hero__description {
+  color: var(--text-primary);
+  font-size: 1.25rem;
+  line-height: 1.625;
+  max-width: 48rem;
+  margin: 0 auto;
+}
+
+.button-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  justify-content: center;
+  align-items: center;
+  margin: 2rem 0;
+
+  @media (min-width: 768px) {
+    flex-direction: row;
+  }
+}
+
+.get-started-button {
+  @include button-base;
+  background-color: var(--bg-primary-button);
+  color: white;
+
+  &:hover {
+    background-color: var(--bg-primary-button-hover);
+  }
+}
+
+.view-on-github-button {
+  @include button-base;
+  background-color: var(--bg-outline-button);
+  color: var(--text-primary);
+  border: 1px solid var(--border-outline);
+
+  &:hover {
+    background-color: var(--bg-outline-hover);
+    border-color: var(--border-outline-hover);
+  }
+}
+
+.go-to-github-button {
+  @include button-base;
+  background-color: var(--bg-outline-button);
+  color: var(--text-primary);
+  border: 1px solid var(--border-outline-secondary);
+
+  &:hover {
+    background-color: var(--bg-outline-hover);
+    border-color: var(--border-outline-hover);
+  }
+}
+
+.points-wrapper {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+  margin-top: 2rem;
+
+  @media (max-width: 768px) {
+    gap: 1.5rem;
+  }
+}
+
+.point-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.point-text {
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+// =========================================
+// SECTIONS
+// =========================================
+
+.section {
+  padding: 4rem 0;
+
+  &--quick-start {
+    background-color: var(--section-bg-quick);
+  }
+
+  &--features {
+    padding: 6rem 0;
+    background: var(--section-bg-features);
+  }
+
+  &--decorators-to-types {
+    padding: 6rem 0;
+    background: var(--section-bg-quick);
+  }
+
+  &--ready-to-get-started {
+    padding: 6rem 0;
+    background: var(--section-bg-features);
+  }
+}
+
+.section__header {
+  text-align: center;
+  margin-bottom: 3rem;
+}
+
+.section__title {
+  font-size: 1.875rem;
+  font-weight: bold;
+  margin-bottom: 1rem;
+  color: var(--text-primary);
+}
+
+.section__description {
+  font-size: 1.125rem;
+  max-width: 42rem;
+  margin: 0 auto;
+  color: var(--text-primary);
+}
+
+.section__note {
+  font-size: 1rem;
+  max-width: 100%;
+  margin: 0 auto;
+  color: var(--text-secondary);
+}
+
+.section__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  @media (min-width: 1024px) {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 2rem;
+  }
+}
+
+// =========================================
+// STEP CARDS (QUICK START)
+// =========================================
+
+.step-card {
+  @include card-base;
+
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  &__number {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    border-radius: 50%;
+    background: linear-gradient(to right, #2563eb, #4f46e5);
+    color: white;
+    font-size: 0.875rem;
+    font-weight: bold;
+  }
+
+  &__icon-wrapper {
+    display: flex;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    background: var(--step-icon-bg);
+    color: var(--step-icon-text);
+  }
+
+  &__title {
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+  }
+
+  &__description {
+    font-size: 0.875rem;
+    color: var(--text-primary);
+    line-height: 1.5;
+  }
+}
+
+// =========================================
+// FEATURE CARDS
+// =========================================
+
+.feature-card {
+  @include card-base;
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+
+  &__icon-wrapper {
+    display: inline-flex;
+    padding: 0.75rem;
+    border-radius: 0.75rem;
+    margin-bottom: 1rem;
+    border: 1px solid currentColor;
+    align-self: flex-start;
+  }
+
+  &__icon {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  &__title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+    color: var(--text-primary);
+  }
+
+  &__description {
+    font-size: 1rem;
+    color: var(--text-primary);
+    line-height: 1.625;
+  }
+}
+
+.feature-icon {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+// =========================================
+// DECORATORS TO TYPES SECTION
+// =========================================
+
+.code-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.5rem;
+
+  @media (min-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.code-block {
+  @include card-base;
+  border-radius: 1rem;
+  min-height: 300px;
+  background: transparent;
+  border-color: transparent;
+  padding: 0;
+  overflow: hidden;
+
+  &:hover {
+    border-color: transparent;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  & > div {
+    height: 100%;
+    margin: 0;
+  }
+}
+
+.code-wrapper {
+  width: 100%;
+  margin-top: -3rem;
+
+  & > div {
+    width: 100%;
+  }
+}

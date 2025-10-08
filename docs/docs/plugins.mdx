@@ -1,0 +1,260 @@
+---
+id: plugins
+title: Apinni Plugins
+description: Learn how to create and use plugins to extend Apinni's type generation capabilities in your TypeScript project.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
+
+# Apinni Plugins
+
+Apinni’s plugin system allows developers to extend its type generation capabilities by defining custom logic for processing decorators, metadata, and type generation. Plugins integrate with the Apinni pipeline, leveraging lifecycle hooks to customize behavior, and support dependencies for modular and reusable functionality. This guide covers creating plugins, configuring them in your project, and managing dependencies, complementing the core decorators like [`@ApinniController`](/docs/decorators/apinni-controller), [`@ApinniEndpoint`](/docs/decorators/apinni-endpoint), [`@ApinniDomain`](/docs/decorators/apinni-domain), and [`@ApinniDisabled`](/docs/decorators/apinni-disabled).
+
+<Admonition type="info" title="Key Features">
+- Extend Apinni with custom decorators, metadata, and type generation logic.
+- Support for shareable plugins that can be reused as dependencies.
+- Lifecycle hooks for initializing, processing, and generating types.
+- Dependency management with context sharing for modular plugins.
+</Admonition>
+
+## Plugin Architecture
+
+A Apinni plugin is defined by the `ApinniPlugin` interface, which specifies a unique `name`, optional `config`, lifecycle `hooks`, and optional `dependencies`. Plugins can be shareable (usable as dependencies by other plugins) and can manipulate the global context (class and method metadata) or share custom context data with dependent plugins.
+
+### Plugin Lifecycle Hooks
+
+Plugins execute the following hooks in order during the Apinni pipeline:
+
+| Hook                          | Description                                                                 |
+|-------------------------------|-----------------------------------------------------------------------------|
+| `onInitialize`                | Registers custom decorators in the Apinni registry.                         |
+| `onAfterDecoratorsProcessed`  | Runs after all decorators are processed for validation or preparation.       |
+| `onProvideSharedContext`      | Shares plugin-specific context data with dependent plugins (shareable only). |
+| `onConsumeDependencyContexts` | Consumes shared contexts from dependencies (for plugins with dependencies).  |
+| `onRegisterMetadata`          | Registers custom metadata in the generation context.                        |
+| `onGenerateTypes`             | Generates final type definitions or performs custom generation tasks.        |
+
+<Admonition type="tip">
+Use `onInitialize` to register custom decorators and `onRegisterMetadata` to add plugin-specific metadata, ensuring seamless integration with Apinni’s type generation.
+</Admonition>
+
+## Plugin Configuration
+
+Define a plugin using the `ApinniPlugin` interface. The configuration includes:
+
+| Property       | Type                          | Description                                                                 |
+|----------------|-------------------------------|-----------------------------------------------------------------------------|
+| `name`         | `string`                      | Unique identifier for the plugin.                                           |
+| `config`       | `{ shareable?: boolean }`     | Optional settings; set `shareable: true` to allow use as a dependency.       |
+| `hooks`        | Object with lifecycle hooks   | Functions for each lifecycle stage (see above).                             |
+| `dependencies` | `Dependency[]`                | Array of dependent plugins with optional `allowContextManipulation` option.  |
+
+### Dependency Options
+
+When a plugin depends on another, it can specify:
+
+| Property                   | Type      | Description                                                                 |
+|----------------------------|-----------|-----------------------------------------------------------------------------|
+| `plugin`                   | `ShareablePlugin` | The dependent plugin (must have `shareable: true`).                  |
+| `options.allowContextManipulation` | `boolean` | If `true`, allows the dependency to manipulate the global context.   |
+
+<Admonition type="warning">
+Dependencies must be shareable plugins. Non-shareable dependencies will throw an error during plugin resolution.
+</Admonition>
+
+## Creating a Plugin
+
+### Example 1: Basic Plugin
+
+Create a simple plugin that logs endpoint paths during type generation.
+
+```ts title="src/plugins/log-paths-plugin.ts"
+import { ApinniPlugin, ShareableRegistry, ShareableContext } from 'apinni';
+
+export const logPathsPlugin: ApinniPlugin = {
+  name: 'log-paths',
+  hooks: {
+    onInitialize: (registry: ShareableRegistry) => {
+      console.log('Initializing log-paths plugin');
+    },
+    onRegisterMetadata: (context: ShareableContext) => {
+      context.registerMethodMetadata = (target, propertyKey, metadata) => {
+        console.log(`Registering endpoint: ${metadata.path}`);
+      };
+    },
+    onGenerateTypes: async ({ methodMetadata }) => {
+      console.log('Generated endpoint paths:');
+      methodMetadata.forEach(meta => {
+        console.log(`- ${meta.path}`);
+      });
+    },
+  },
+};
+```
+
+### Example 2: Shareable Plugin with Custom Context
+
+Create a shareable plugin that provides custom context data to dependent plugins.
+
+```ts title="src/plugins/auth-context-plugin.ts"
+import { ShareablePlugin, ShareableRegistry, ShareableContext } from 'apinni';
+
+export const authContextPlugin: ShareablePlugin = {
+  name: 'auth-context',
+  config: { shareable: true },
+  hooks: {
+    onInitialize: (registry: ShareableRegistry) => {
+      console.log('Initializing auth-context plugin');
+    },
+    onProvideSharedContext: () => ({
+      data: { authPrefix: '/secure' },
+    }),
+    onGenerateTypes: async ({ methodMetadata }) => {
+      console.log('Adding auth prefix to endpoints:');
+      methodMetadata.forEach(meta => {
+        console.log(`- ${meta.path}`);
+      });
+    },
+  },
+};
+```
+
+### Example 3: Plugin with Dependencies
+
+Create a plugin that depends on the `auth-context` plugin and uses its shared context.
+
+<Tabs>
+  <TabItem value="dependent-plugin" label="Dependent Plugin" default>
+    ```ts title="src/plugins/secure-endpoints-plugin.ts"
+    import { ApinniPlugin, ShareableContext } from 'apinni';
+    import { authContextPlugin } from './auth-context-plugin';
+
+    export const secureEndpointsPlugin: ApinniPlugin = {
+      name: 'secure-endpoints',
+      dependencies: [
+        { plugin: authContextPlugin, options: { allowContextManipulation: true } },
+      ],
+      hooks: {
+        onInitialize: (registry: ShareableRegistry) => {
+          console.log('Initializing secure-endpoints plugin');
+        },
+        onConsumeDependencyContexts: (contexts: [{ data: { authPrefix: string } }]) => {
+          const authContext = contexts[0].data;
+          console.log(`Using auth prefix: ${authContext.authPrefix}`);
+        },
+        onRegisterMetadata: (context: ShareableContext) => {
+          context.registerMethodMetadata = (target, propertyKey, metadata) => {
+            metadata.path = `/secure${metadata.path}`;
+            console.log(`Secured endpoint: ${metadata.path}`);
+          };
+        },
+      },
+    };
+    ```
+
+    <Admonition type="info" title="example">
+    - **Plugin Name**: `secure-endpoints`
+    - **Dependency**: `auth-context` (shareable plugin)
+    - **Behavior**: Prepends `/secure` to endpoint paths using the shared `authPrefix`.
+    - **Generated Types**: Reflects modified paths in type definitions.
+    </Admonition>
+  </TabItem>
+</Tabs>
+
+## Configuring Plugins
+
+Add plugins to your Apinni configuration in `apinni.config.json` or directly in the `apinni` command.
+
+### Option 1: Configuration File
+
+Include plugins in `apinni.config.json`:
+
+```json title="apinni.config.json"
+{
+  "includePatterns": ["src/controllers/**/*.ts"],
+  "outputPath": "./types",
+  "plugins": [
+    { "name": "log-paths", "path": "./src/plugins/log-paths-plugin.ts" },
+    { "name": "auth-context", "path": "./src/plugins/auth-context-plugin.ts" },
+    { "name": "secure-endpoints", "path": "./src/plugins/secure-endpoints-plugin.ts" }
+  ]
+}
+```
+
+### Option 2: Command-Line
+
+Pass plugins via the `--plugins` flag:
+
+```sh
+npx apinni --plugins src/plugins/log-paths-plugin.ts,src/plugins/auth-context-plugin.ts,src/plugins/secure-endpoints-plugin.ts
+```
+
+<Admonition type="warning">
+Ensure plugins are loaded in the correct order to resolve dependencies. Apinni automatically handles topological sorting to prevent circular dependencies.
+</Admonition>
+
+## Running Plugins
+
+Run the `apinni` command to execute the plugin lifecycle:
+
+<Tabs groupId="package-manager">
+  <TabItem value="npm" label="npm" default>
+    ```sh
+    npm run apinni
+    ```
+  </TabItem>
+  <TabItem value="yarn" label="Yarn">
+    ```sh
+    yarn apinni
+    ```
+  </TabItem>
+  <TabItem value="pnpm" label="pnpm">
+    ```sh
+    pnpm run apinni
+    ```
+  </TabItem>
+</Tabs>
+
+The pipeline executes the following steps:
+1. **Preparation**: Initializes plugins and caches files.
+2. **Core Processing**: Scans for decorators, compiles files, and processes decorators.
+3. **Finalization**: Executes plugin hooks (`onAfterDecoratorsProcessed`, `onConsumeDependencyContexts`, `onRegisterMetadata`, `onGenerateTypes`) and generates types.
+
+## Usage Notes
+
+- **Shareable Plugins**: Set `shareable: true` in the `config` to allow a plugin to be used as a dependency. Only shareable plugins can provide shared context via `onProvideSharedContext`.
+- **Dependency Restrictions**: By default, dependencies cannot manipulate the global context (`onRegisterMetadata`, `onGenerateTypes`) unless `allowContextManipulation: true` is specified.
+- **Error Handling**: Ensure unique plugin names and valid dependency configurations to avoid errors like circular dependencies or missing shareable plugins.
+- **Context Manipulation**: Use `onRegisterMetadata` to modify class or method metadata, but be cautious to avoid conflicts with other plugins.
+
+<Admonition type="tip" title="Try It Out">
+Experiment with Apinni plugins in a live TypeScript environment: [CodeSandbox Link](#).
+</Admonition>
+
+## Troubleshooting
+
+| Issue                              | Solution                                                                 |
+|------------------------------------|--------------------------------------------------------------------------|
+| **Plugin not loaded**              | Verify the plugin path in `apinni.config.json` or `--plugins` flag.       |
+| **Circular dependency error**      | Check plugin dependencies for cycles and reorder or remove conflicting dependencies. |
+| **Shared context not found**       | Ensure dependency plugins have `shareable: true` and implement `onProvideSharedContext`. |
+| **Metadata not registered**        | Confirm `allowContextManipulation: true` for dependencies if they need to modify context. |
+
+Use the `--verbose` flag for detailed logs:
+```sh
+npx apinni --verbose
+```
+
+## Related Topics
+
+- [Installation](/docs/installation) – Install and set up Apinni.
+- [ApinniController](/docs/decorators/apinni-controller) – Define controllers with base paths.
+- [ApinniEndpoint](/docs/decorators/apinni-endpoint) – Define individual endpoints.
+- [ApinniDomain](/docs/decorators/apinni-domain) – Group endpoints into domains.
+- [ApinniDisabled](/docs/decorators/apinni-disabled) – Exclude classes or methods from type generation.
+
+<Admonition type="info">
+For advanced use cases, check the [Apinni API Reference](/docs/api-reference) or contact the [Apinni community](https://community.apinni.dev).
+</Admonition>

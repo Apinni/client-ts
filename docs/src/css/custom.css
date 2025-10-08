@@ -1,0 +1,83 @@
+/* src/css/custom.css */
+
+/* Ensure dark mode support */
+:root {
+  --ifm-color-primary: #2563eb;
+  --ifm-color-primary-dark: #1d4ed8;
+  --ifm-color-primary-darker: #1e40af;
+  --ifm-color-primary-darkest: #1e3a8a;
+  --ifm-color-primary-light: #3b82f6;
+  --ifm-color-primary-lighter: #60a5fa;
+  --ifm-color-primary-lightest: #93c5fd;
+  --ifm-color-success: #10b981;
+  --ifm-color-success-light: #34d399;
+  --ifm-color-success-lightest: #6ee7b7;
+  --ifm-color-warning: #f59e0b;
+  --ifm-color-warning-light: #fbbf24;
+  --ifm-color-warning-lightest: #fcd34d;
+  --ifm-color-info: #8b5cf6;
+  --ifm-color-info-light: #a78bfa;
+  --ifm-color-info-lightest: #c4b5fd;
+  --ifm-color-content: rgb(30 41 59);
+  --ifm-background-color: rgb(248 250 252);
+  --ifm-background-surface-color: rgb(255 255 255);
+  --ifm-link-color: #2563eb;
+  --ifm-navbar-background-color: rgb(255 255 255);
+  --ifm-menu-color: rgb(71 85 105);
+  --ifm-toc-color: rgb(71 85 105);
+  --ifm-code-font-size: 0.875rem;
+  --ifm-code-padding-horizontal: 0.25rem;
+  --ifm-code-padding-vertical: 0.15rem;
+  --ifm-code-background: rgb(248 250 252);
+  --ifm-heading-color: rgb(30 41 59);
+  --ifm-sidebar-nav-link-hover-color: #2563eb;
+  --ifm-footer-background-color: rgb(248 250 252);
+  --ifm-footer-link-color: rgb(71 85 105);
+  --ifm-footer-link-hover-color: #2563eb;
+  --ifm-search-active-background-color: rgba(37 99 235, 0.1);
+  --ifm-search-modal-background: rgb(255 255 255);
+  --ifm-search-result-hover-bg: rgb(248 250 252);
+}
+
+/* Dark Theme (corresponding, with slate-based neutrals and adjusted accents for contrast) */
+html[data-theme='dark'] {
+    --ifm-color-primary: #60a5fa;
+    --ifm-color-primary-dark: #3b82f6;
+    --ifm-color-primary-darker: #2563eb;
+    --ifm-color-primary-darkest: #1d4ed8;
+    --ifm-color-primary-light: #93c5fd;
+    --ifm-color-primary-lighter: #bfdbfe;
+    --ifm-color-primary-lightest: #dbeafe;
+    --ifm-color-success: #34d399;
+    --ifm-color-success-light: #6ee7b7;
+    --ifm-color-success-lightest: #a7f3d0;
+    --ifm-color-warning: #fbbf24;
+    --ifm-color-warning-light: #fcd34d;
+    --ifm-color-warning-lightest: #fde68a;
+    --ifm-color-info: #a78bfa;
+    --ifm-color-info-light: #c4b5fd;
+    --ifm-color-info-lightest: #ddd6fe;
+    --ifm-color-content: rgb(241 245 249);
+    --ifm-background-color: rgb(15 23 42);
+    --ifm-background-surface-color: rgb(30 41 59);
+    --ifm-link-color: #60a5fa;
+    --ifm-navbar-background-color: rgb(15 23 42);
+    --ifm-menu-color: rgb(148 163 184);
+    --ifm-toc-color: rgb(148 163 184);
+    --ifm-code-font-size: 0.875rem;
+    --ifm-code-padding-horizontal: 0.25rem;
+    --ifm-code-padding-vertical: 0.15rem;
+    --ifm-code-background: rgb(31 42 66);
+    --ifm-heading-color: rgb(241 245 249);
+    --ifm-sidebar-nav-link-hover-color: #60a5fa;
+    --ifm-footer-background-color: rgb(15 23 42);
+    --ifm-footer-link-color: rgb(148 163 184);
+    --ifm-footer-link-hover-color: #60a5fa;
+    --ifm-search-active-background-color: rgba(96 165 250, 0.1);
+    --ifm-search-modal-background: rgb(30 41 59);
+    --ifm-search-result-hover-bg: rgb(30 41 59);
+}
+/* Grid background for hero section */
+/* .bg-grid {
+  background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='%23999' fill-opacity='0.1'%3E%3Cpath d='M0 0h20v20H0z'/%3E%3C/g%3E%3C/svg%3E");
+} */

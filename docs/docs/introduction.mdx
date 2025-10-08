@@ -1,0 +1,30 @@
+---
+id: introduction
+title: Introduction to Apinni
+description: Discover Apinni, a TypeScript library for generating type-safe API definitions using decorators.
+---
+
+import Admonition from '@theme/Admonition';
+
+Apinni is a TypeScript library for generating type-safe API definitions using decorators. It processes decorated controllers and endpoints, compiles TypeScript files, and generates type definitions for API paths, methods, requests, and responses. Key features include a CLI with watch mode, plugin support for extensibility (e.g., Swagger integration), and utility types for client-side consumption.
+
+<Admonition type="info" title="Why Apinni?">
+Apinni streamlines API development by ensuring type safety across your backend and frontend, reducing runtime errors and improving developer productivity. It's perfect for modern TypeScript projects aiming for robust, maintainable APIs.
+</Admonition>
+
+## Core Benefits
+
+- **Type Safety**: Automatically generate types for requests and responses.
+- **Extensibility**: Plugins allow custom integrations like documentation generation.
+- **Developer-Friendly**: CLI with watch mode for seamless workflows.
+- **Flexibility**: Supports various backend frameworks and client-side usage.
+
+## Quick Overview
+
+Apinni works by scanning your TypeScript code for decorators like `@ApinniController` and `@ApinniEndpoint`, then generating a type definition file (e.g., `api-types.d.ts`) that you can import in your clients or servers.
+
+For a hands-on start, check out the [Getting Started](/docs/getting-started) guide.
+
+<Admonition type="tip" title="Community and Support">
+Join the [Apinni community](https://community.apinni.dev) for discussions, or explore the [GitHub repository](https://github.com/apinni/apinni) for source code and contributions.
+</Admonition>

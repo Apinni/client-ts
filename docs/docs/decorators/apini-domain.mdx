@@ -1,0 +1,171 @@
+---
+id: apinni-domain
+title: ApinniDomain
+description: Learn how to use the @ApinniDomain decorator to group endpoints into domains and organize generated types in your Apinni project.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
+
+# ApinniDomain Decorator
+
+The `@ApinniDomain` decorator groups API endpoints into logical domains, organizing their generated type definitions into separate files (e.g., `auth-types.d.ts`, `api-types.d.ts`). It works with [`@ApinniController`](/docs/decorators/apinni-controller) and [`@ApinniEndpoint`](/docs/decorators/apinni-endpoint) to provide a structured approach to API type generation, improving modularity and maintainability in large projects.
+
+<Admonition type="info" title="Key Features">
+- Groups endpoints into domains for organized type generation.
+- Generates separate type definition files per domain.
+- Supports single or multiple domains for flexible organization.
+- Enhances API modularity and type discoverability.
+</Admonition>
+
+## Syntax
+
+Use the `@ApinniDomain` decorator to annotate a controller class, specifying one or more domains to group its endpoints.
+
+```ts title="Basic Syntax"
+@ApinniDomain({ domains: ['auth'] })
+@ApinniController({ path: '/auth' })
+class AuthController {}
+```
+
+## Options
+
+The decorator accepts an options object with the following property:
+
+| Property   | Type                | Description                                                                 |
+|------------|---------------------|-----------------------------------------------------------------------------|
+| `domains`  | `string[]` | An array of strings defining the domain(s) for generated types (e.g., `["auth"]` or `["auth", "api"]`). |
+
+<Admonition type="tip">
+Use descriptive domain names (e.g., `auth`, `user`, `billing`) to clearly organize generated type files and improve project scalability.
+</Admonition>
+
+## Domain-Based Type Generation
+
+The `@ApinniDomain` decorator instructs the Apinni pipeline to generate type definitions for a controller’s endpoints in separate files based on the specified domains. Each domain corresponds to a type definition file (e.g., `auth-types.d.ts`), containing the request and response types for all endpoints in that domain. Endpoints in a controller are included in the type files for each specified domain, allowing flexible organization across multiple type files.
+
+## Usage with ApinniController and ApinniEndpoint
+
+The `@ApinniDomain` decorator is applied at the controller level and works with `@ApinniController` to set the base path and `@ApinniEndpoint` to define individual endpoints. The generated types for these endpoints are organized into the specified domain files.
+
+### Example 1: Single Domain
+
+Group endpoints into a single domain for type generation.
+
+```ts title="Single Domain"
+import { ApinniController, ApinniEndpoint, ApinniDomain } from 'apinni';
+
+@ApinniDomain({ domains: 'auth' })
+@ApinniController({ path: '/auth' })
+class AuthController {
+  @ApinniEndpoint({ path: '/login', method: 'POST' })
+  login() {
+    return { token: 'abc123' };
+  }
+}
+```
+
+<Admonition type="info" title="example">
+- **Domain**: `auth`
+- **Generated File**: `auth-types.d.ts`
+- **Endpoint**: `/auth/login` (POST)
+- **Generated Types**: Includes request/response types for `login` endpoint
+</Admonition>
+
+### Example 2: Multiple Domains
+
+Group endpoints into multiple domains for flexible type organization.
+
+```ts title="Multiple Domains"
+import { ApinniController, ApinniEndpoint, ApinniDomain } from 'apinni';
+
+@ApinniDomain({ domains: ['auth', 'api'] })
+@ApinniController({ path: '/auth' })
+class AuthController {
+  @ApinniEndpoint({ path: '/login', method: 'POST' })
+  login() {
+    return { token: 'abc123' };
+  }
+}
+```
+
+<Admonition type="info" title="example">
+- **Domains**: `auth`, `api`
+- **Generated Files**: `auth-types.d.ts`, `api-types.d.ts`
+- **Endpoint**: `/auth/login` (POST)
+- **Generated Types**: Included in both `auth-types.d.ts` and `api-types.d.ts`
+</Admonition>
+
+### Example 3: Multiple Controllers with Domains
+
+Define multiple controllers grouped into domains.
+
+<Tabs>
+  <TabItem value="multiple-endpoints" label="Multiple Endpoints" default>
+    ```ts title="Multiple Endpoints with Domains"
+    import { ApinniController, ApinniEndpoint, ApinniDomain } from 'apinni';
+    import type { User } from './types';
+
+    type LoginRequest = { username: string; password: string };
+    type LoginResponse = { token: string };
+    type UsersResponse = Array<User>;
+
+    @ApinniDomain({ domains: ['auth', 'api'] })
+    @ApinniController({ path: '/auth' })
+    class AuthController {
+      @ApinniEndpoint({
+        path: '/login',
+        method: 'POST',
+        request: { model: 'LoginRequest' },
+        responses: { 200: { model: 'LoginResponse' } }
+      })
+      login() {
+        return { token: 'abc123' };
+      }
+    }
+
+    @ApinniDomain({ domains: ['api'] })
+    @ApinniController({ path: '/users' })
+    class UserController {
+      @ApinniEndpoint<{ responses: { type: UsersResponse }}>({
+        path: '/find',
+        method: 'GET',
+      })
+      getUsers() {
+        return [/* users */];
+      }
+    }
+    ```
+
+    <Admonition type="info" title="example">
+    - **Generated Files**: `auth-types.d.ts`, `api-types.d.ts`
+    - **Endpoints**:
+      - `/auth/login` presented in both `auth-types.d.ts` and `api-types.d.ts` files
+      - `/users/find` presented in `api-types.d.ts` file
+    </Admonition>
+  </TabItem>
+</Tabs>
+
+## Usage Notes
+
+- **Domain Naming**: Use clear, meaningful domain names to reflect the purpose of the endpoints (e.g., `auth` for authentication-related endpoints).
+- **Type Generation**: Each domain generates a separate `.d.ts` file containing all endpoint types for the controller.
+- **Multiple Domains**: Endpoints are included in all specified domains’ type files, allowing flexible organization.
+
+<Admonition type="warning">
+Avoid empty or invalid domain names to prevent errors in type generation. Ensure domain names are unique within your project to avoid file conflicts.
+</Admonition>
+
+<Admonition type="tip" title="Try It Out">
+Explore these examples in a live TypeScript environment: [CodeSandbox Link](#).
+</Admonition>
+
+## Related Topics
+
+- [ApinniController](/docs/decorators/apinni-controller) – Define controllers with base paths.
+- [ApinniEndpoint](/docs/decorators/apinni-endpoint) – Define individual endpoints within a controller.
+
+<Admonition type="info">
+For advanced use cases, check the [Apinni API Reference](/docs/api-reference) or contact the [Apinni community](https://community.apinni.dev).
+</Admonition>

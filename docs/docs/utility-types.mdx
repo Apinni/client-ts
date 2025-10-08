@@ -1,0 +1,158 @@
+---
+id: utility-types
+title: Utility Types
+description: Explore Apinni's utility types for type-safe API interactions in TypeScript projects.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
+
+Apinni's utility types enable type-safe API interactions by providing structured access to endpoint paths, methods, requests, responses, and query parameters. Generated from your decorated controllers and endpoints, these types are ideal for client-side applications, ensuring compile-time safety and improved developer experience.
+
+<Admonition type="info" title="Overview">
+These utility types, exported in all generated files (e.g.: `api-types.d.ts`), allow you to type API clients, fetch requests, or integrations with frameworks like React, Vue, or Angular. They support dynamic path parameters, query parameters, and response typing.
+</Admonition>
+
+## Core Utilities
+
+### ApiPaths
+
+A union type containing all path strings defined in the `Api` schema.
+
+**Example**
+
+```ts
+import type { ApiPaths } from './api-types';
+
+const path: ApiPaths = '/users/:id'; // Type-safe path
+```
+
+### ApiAvailableMethods
+
+A utility type that resolves to the available HTTP methods (e.g., `GET`, `POST`) for a given path.
+
+**Example**
+
+```ts
+import type { ApiAvailableMethods } from './api-types';
+
+type Method = ApiAvailableMethods<'/users/:id'>; // e.g., 'GET' | 'POST'
+```
+
+## Request and Response Utilities
+
+### ApiRequest
+
+A type that extracts the request body for a specific path and method.
+
+**Example**
+
+```ts
+import type { ApiRequest } from './api-types';
+
+type UserRequest = ApiRequest<'/users/:id', 'GET'>; // { id: string }
+```
+
+### ApiResponses
+
+A type that maps response types by HTTP status code for a given path and method.
+
+**Example**
+
+```ts
+import type { ApiResponses } from './api-types';
+
+type UserResponse = ApiResponses<'/users/:id', 'GET'>; // { 200: { name: string } }
+```
+
+### ApiResponsesByStatus
+
+A type that extracts the response for a specific status code on a path and method. If no status is provided, it resolves to the union of all possible responses.
+
+**Example**
+
+```ts
+import type { ApiResponsesByStatus } from './api-types';
+
+type SuccessResponse = ApiResponsesByStatus<'/users/:id', 'GET', '200'>; // e.g., { name: string }
+type AnyResponse = ApiResponsesByStatus<'/users/:id', 'GET'>; // Union of all responses
+```
+
+### ApiQuery
+
+A type that extracts the query parameter object for a path and method.
+
+**Example**
+
+```ts
+import type { ApiQuery } from './api-types';
+
+type Query = ApiQuery<'/users', 'GET'>; // e.g., { search: string }
+```
+
+## Path Building Utilities
+
+### ApiPathBuilder
+
+A function type for building type-safe URL paths, automatically handling dynamic parameters and optional query strings based on the endpoint definition.
+
+The function signature adapts dynamically:
+- No params or query: `() => <path>`
+- Params only: `(args: { params: Record<string, string> }) => <path>`
+- Query only: `(args: { query: QueryType }) => <path> | <path>?{string}`
+- Both: `(args: { params: Record<string, string>; query: QueryType }) => <path>?{string}`
+
+Query strings are appended as `?${string}` when query args are provided.
+
+**Example**
+
+```ts
+import type { ApiPathBuilder } from './api-types';
+
+type BuildUserPath = ApiPathBuilder<'/users/:id', 'GET'>;
+// Type: (args: { params: { id: string }; query?: { search: string } }) => `/users/${string}` | `/users/${string}?${string}`
+
+const buildPath: BuildUserPath = (args) => {
+  let url = `/users/${args.params.id}`;
+  if (args.query?.search) {
+    url += `?search=${encodeURIComponent(args.query.search)}`;
+  }
+  return url;
+};
+
+const url = buildPath({ params: { id: '123' }, query: { search: 'alice' } });
+// Returns: `/users/${string}` | `/users/${string}?${string}`
+```
+
+<Admonition type="tip">
+Use `ApiPathBuilder` to create reusable, type-safe URL constructors in your API client.
+</Admonition>
+
+## Building a Type-Safe API Client
+
+Combine these utilities to create robust, typed API interactions.
+
+<Admonition type="info" title="example">
+Utilizing all utilities enforces correct paths, methods, params, queries, and responses at compile time, reducing runtime errors. For advanced client building examples see [Guides](/docs/guides/frontend-integration)
+</Admonition>
+
+## Integration Tips
+
+- **Monorepo Setup**: Share `api-types.d.ts` across backend and frontend.
+- **Client Libraries**: Pair with Axios, tRPC, or TanStack Query for enhanced DX.
+- **Regeneration**: Re-run `apinni` after backend changes to keep types updated.
+
+<Admonition type="warning">
+Ensure your client imports the latest generated types to avoid type mismatches.
+</Admonition>
+
+## Related Topics
+
+- [Frontend Integration](/docs/guides/frontend-integration) – Using types in React, Vue, etc.
+- [API Reference](/docs/api-reference/overview) – Full details on Apinni’s API.
+- [Getting Started](/docs/getting-started) – Setup and configuration.
+
+<Admonition type="info">
+For advanced use cases or questions, join the [Apinni community](https://community.apinni.dev) or check the [GitHub repository](https://github.com/apinni/apinni).
+</Admonition>

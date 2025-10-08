@@ -1,0 +1,57 @@
+---
+id: best-practices-2
+title: Best Practices
+description: Tips and recommendations for effectively using Apinni in your projects.
+---
+
+import Admonition from '@theme/Admonition';
+
+Follow these best practices to maximize Apinni's benefits, ensure maintainability, and avoid common pitfalls.
+
+<Admonition type="info" title="Overview">
+Apinni promotes type safety and modularity; these practices help integrate it smoothly into your workflow.
+</Admonition>
+
+## Project Structure
+
+- **Organize Controllers**: Group by domain (e.g., `src/controllers/users`, `src/controllers/auth`).
+- **Use Domains**: Apply `@ApinniDomain` for logical grouping in generated types.
+- **Separate Concerns**: Keep business logic out of controllers; use services.
+
+## Workflow Tips
+
+- **Watch Mode in Dev**: Always use `--watch` for instant feedback.
+- **CI/CD Integration**: Run `apinni` in build pipelines to ensure types are up-to-date.
+- **Version Control**: Commit generated types or regenerate on deploy.
+
+## Performance
+
+- **Limit Scans**: Use precise `include` patterns.
+- **Caching**: Leverage TypeScript's incremental compilation.
+- **Large Projects**: Split into modules or use plugins for optimization.
+
+## Security and Maintenance
+
+- **Disable Sensitive Endpoints**: Use `@ApinniDisabled` for control generated APIs.
+- **Plugin Management**: Keep plugins updated; test dependencies.
+- **Documentation**: Use plugins like Swagger for auto-docs.
+
+<Admonition type="tip">
+Combine with linting rules to enforce decorator usage.
+</Admonition>
+
+## Common Pitfalls
+
+- Forgetting to compile before generation when passing `--use-existing-build` flag.
+- Mismatched or wrong `tsconfig.json` settings.
+- Overly broad plugins leading to conflicts.
+
+<Admonition type="warning">
+Always test generated types in your client apps.
+</Admonition>
+
+For specific integrations, see [Backend](/docs/guides/backend-integration) and [Frontend](/docs/guides/frontend-integration).
+
+<Admonition type="info">
+Share your practices in the [community](https://community.apinni.dev).
+</Admonition>

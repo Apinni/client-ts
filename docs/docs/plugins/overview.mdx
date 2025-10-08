@@ -1,0 +1,49 @@
+---
+id: overview
+title: Plugins Overview
+description: Introduction to Apinni plugins for extending type generation capabilities.
+---
+
+import Admonition from '@theme/Admonition';
+
+Apinni’s plugin system allows developers to extend its type generation capabilities by defining custom logic for processing decorators, metadata, and type generation. Plugins integrate with the Apinni pipeline, leveraging lifecycle hooks to customize behavior, and support dependencies for modular and reusable functionality.
+
+<Admonition type="info" title="Key Features">
+- Extend Apinni with custom decorators, metadata, and type generation logic.
+- Support for shareable plugins that can be reused as dependencies.
+- Lifecycle hooks for initializing, processing, and generating types.
+- Dependency management with context sharing for modular plugins.
+</Admonition>
+
+## Plugin Architecture
+
+A Apinni plugin is defined by the `ApinniPlugin` interface, which specifies a unique `name`, optional `config`, lifecycle `hooks`, and optional `dependencies`. Plugins can be shareable (usable as dependencies by other plugins) and can manipulate the global context (class and method metadata) or share custom context data with dependent plugins.
+
+### Plugin Lifecycle Hooks
+
+Plugins execute the following hooks in order during the Apinni pipeline:
+
+| Hook                          | Description                                                                 |
+|-------------------------------|-----------------------------------------------------------------------------|
+| `onInitialize`                | Registers custom decorators in the Apinni registry.                         |
+| `onAfterDecoratorsProcessed`  | Runs after all decorators are processed for validation or preparation.       |
+| `onProvideSharedContext`      | Shares plugin-specific context data with dependent plugins (shareable only). |
+| `onConsumeDependencyContexts` | Consumes shared contexts from dependencies (for plugins with dependencies).  |
+| `onRegisterMetadata`          | Registers custom metadata in the generation context.                        |
+| `onGenerateTypes`             | Generates final type definitions or performs custom generation tasks.        |
+
+<Admonition type="tip">
+Use `onInitialize` to register custom decorators and `onRegisterMetadata` to add plugin-specific metadata, ensuring seamless integration with Apinni’s type generation.
+</Admonition>
+
+## Why Use Plugins?
+
+- **Customization**: Add support for new decorators or output formats.
+- **Integration**: Connect with tools like Swagger for API docs.
+- **Modularity**: Build reusable components for complex projects.
+
+For building your own, see [Creating Plugins](/docs/plugins/creating-plugins).
+
+<Admonition type="info">
+Explore built-in plugins in the [Built-in Plugins](/docs/plugins/overview) section.
+</Admonition>

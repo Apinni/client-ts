@@ -1,0 +1,354 @@
+---
+id: api-reference
+title: API Reference
+description: Comprehensive reference for Apinni's functions, types, classes, and plugins.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
+
+# API Reference
+
+This section provides detailed documentation for Apinni's public API, including functions, types, interfaces, classes, and built-in plugins. It complements the guides for [decorators](/docs/decorators/apinni-endpoint), [plugins](/docs/plugins), and [installation](/docs/installation). Use this reference to understand the library's core components and extend Apinni with custom logic.
+
+<Admonition type="info" title="Version Note">
+This reference is based on Apinni v1.0.0 (as of September 25, 2025). For updates, check the [GitHub repository](https://github.com/apinni/apinni).
+</Admonition>
+
+## Functions
+
+### runApinni
+
+Runs the Apinni type generation pipeline, processing controllers and endpoints to produce type definition files.
+
+**Syntax**
+
+```ts
+async function runApinni(
+  config: ApinniConfig,
+  options: PipelineOptions
+): Promise<void>
+```
+
+**Parameters**
+
+| Parameter | Type              | Description                                                                 |
+|-----------|-------------------|-----------------------------------------------------------------------------|
+| `config`  | `ApinniConfig`    | Configuration object specifying include patterns, plugins, and output path. |
+| `options` | `PipelineOptions` | Options to control build behavior and watch mode.                           |
+
+**Returns**
+
+`Promise<void>` – Resolves when generation is complete.
+
+**Example**
+
+```ts title="Run Apinni in Script"
+import { runApinni } from 'apinni';
+
+await runApinni({
+  includePatterns: ['src/controllers/**/*.ts'],
+  plugins: [],
+  outputPath: './types'
+}, {
+  useExistingBuild: false,
+  watch: true
+});
+```
+
+<Admonition type="tip">
+Use `watch: true` for development to automatically regenerate types on file changes.
+</Admonition>
+
+### loadApinniConfig
+
+Loads the Apinni configuration from a file (`apinni.config.ts`, `.js`, or `.mjs`) in the project root.
+
+**Syntax**
+
+```ts
+async function loadApinniConfig(cwd?: string): Promise<ApinniConfig>
+```
+
+**Parameters**
+
+| Parameter | Type     | Description                                          |
+|-----------|----------|------------------------------------------------------|
+| `cwd`     | `string` | Optional current working directory (default: `process.cwd()`). |
+
+**Returns**
+
+`Promise<ApinniConfig>` – The loaded configuration.
+
+**Throws**
+
+Error if no config file is found.
+
+**Example**
+
+```ts title="Load Config"
+import { loadApinniConfig } from 'apinni';
+
+const config = await loadApinniConfig();
+console.log(config.plugins);
+```
+
+### extractDecoratorArgValue
+
+Extracts the argument value from a ts-morph Decorator, resolving inline objects, variables, or imports.
+
+**Syntax**
+
+```ts
+function extractDecoratorArgValue<T>(decorator: Decorator): T | null
+```
+
+**Parameters**
+
+| Parameter   | Type        | Description                               |
+|-------------|-------------|-------------------------------------------|
+| `decorator` | `Decorator` | The ts-morph Decorator instance.          |
+
+**Returns**
+
+The extracted value as type `T`, or `null` if not resolvable.
+
+**Example**
+
+```ts title="Extract Decorator Args"
+import { extractDecoratorArgValue } from 'apinni';
+import { getDecorator } from 'ts-morph'; // Assume decorator retrieval
+
+const args = extractDecoratorArgValue<MyOptions>(getDecorator());
+console.log(args.path); // e.g., '/users'
+```
+
+## Types and Interfaces
+
+### ApinniConfig
+
+Configuration interface for Apinni.
+
+**Properties**
+
+| Property        | Type            | Description                                                                 |
+|-----------------|-----------------|-----------------------------------------------------------------------------|
+| `includePatterns` | `string[]`      | Optional glob patterns for files to process (e.g., `['src/**/*.ts']`).      |
+| `plugins`       | `PluginTypes[]` | Array of plugins to extend Apinni functionality.                            |
+| `outputPath`    | `string`        | Optional path for generated type files (default: `./types`).                |
+
+**Example**
+
+```ts
+const config: ApinniConfig = {
+  includePatterns: ['src/controllers/**/*.ts'],
+  plugins: [SwaggerPlugin],
+  outputPath: './generated-types'
+};
+```
+
+### PipelineOptions
+
+Options for controlling the Apinni pipeline execution.
+
+**Properties**
+
+| Property          | Type      | Description                                                                 |
+|-------------------|-----------|-----------------------------------------------------------------------------|
+| `useExistingBuild` | `boolean` | If `true`, skips compilation and uses existing build artifacts.             |
+| `watch`           | `boolean` | If `true`, runs in watch mode, regenerating types on file changes.          |
+
+### ApinniPlugin
+
+Interface for defining a Apinni plugin.
+
+**Properties**
+
+| Property      | Type                          | Description                                                                 |
+|---------------|-------------------------------|-----------------------------------------------------------------------------|
+| `name`        | `string`                      | Unique plugin identifier.                                                   |
+| `config`      | `{ shareable?: boolean }`     | Optional; set `shareable: true` to allow use as a dependency.               |
+| `hooks`       | Object                        | Lifecycle hooks (e.g., `onInitialize`, `onGenerateTypes`).                  |
+| `dependencies`| `Dependency[]`                | Optional array of dependent plugins.                                        |
+
+For detailed plugin creation, see [Plugins Guide](/docs/plugins).
+
+### EndpointShape
+
+Shape for defining endpoint request and response types.
+
+**Properties**
+
+| Property    | Type                              | Description                                                                 |
+|-------------|-----------------------------------|-----------------------------------------------------------------------------|
+| `request`   | `{ type: unknown; name?: string }`| Optional request type and name.                                             |
+| `responses` | `{ [status: number]: { type: unknown; name?: string } }` | Optional response types by status code.                             |
+
+**Example**
+
+```ts
+type MyEndpoint = EndpointShape<{
+  request: { type: { id: string } };
+  responses: { 200: { type: { name: string } } };
+}>;
+```
+
+### Other Types
+
+- `ClassMetadata`: Metadata for controller classes (e.g., `path`, `domains`).
+
+- `MethodMetadata`: Metadata for endpoint methods (e.g., `path`, `method`, `request`).
+
+- `DecoratorDefinition`: Definition for custom decorators.
+
+- `ShareablePlugin`: Extendable plugin type for dependencies.
+
+- `Dependency`: Structure for plugin dependencies.
+
+Refer to source code in `interfaces/` for full definitions.
+
+## Classes
+
+### GenerationContext
+
+Singleton class for managing class and method metadata during generation.
+
+**Methods**
+
+| Method                  | Description                                                                 |
+|-------------------------|-----------------------------------------------------------------------------|
+| `registerClassMetadata` | Registers metadata for a class (e.g., path, domains).                       |
+| `registerMethodMetadata`| Registers metadata for a method (e.g., request, responses).                 |
+| `getPreparedData`       | Returns prepared method metadata for generation.                            |
+| `clear`                 | Clears all metadata.                                                        |
+
+**Example**
+
+```ts
+import { GenerationContext } from 'apinni';
+
+const context = GenerationContext.getInstance();
+context.registerClassMetadata(MyClass, { path: '/users' });
+```
+
+### Pipeline
+
+Executes the Apinni generation process using Listr tasks.
+
+**Constructor Parameters**
+
+| Parameter | Type              | Description                                                                 |
+|-----------|-------------------|-----------------------------------------------------------------------------|
+| `config`  | `ApinniConfig`    | Apinni configuration.                                                       |
+| `options` | `PipelineOptions` | Pipeline options.                                                           |
+
+**Methods**
+
+| Method | Description                                                                 |
+|--------|-----------------------------------------------------------------------------|
+| `run`  | Runs the pipeline tasks (preparation, processing, finalization).            |
+
+### Watcher
+
+Watches for file changes and triggers incremental generation.
+
+**Constructor Parameters**
+
+| Parameter | Type              | Description                                                                 |
+|-----------|-------------------|-----------------------------------------------------------------------------|
+| `config`  | `ApinniConfig`    | Apinni configuration.                                                       |
+| `options` | `PipelineOptions` | Pipeline options (watch mode enabled).                                      |
+
+**Methods**
+
+| Method | Description                                                                 |
+|--------|-----------------------------------------------------------------------------|
+| `run`  | Initializes watcher and handles file events (add, change, unlink).          |
+
+### Other Classes
+
+- `DecoratorRegistry`: Manages decorator registration and processing.
+
+- `CompilerModule`: Compiles TypeScript files with caching.
+
+- `DecoratorsModule`: Processes decorators in source files.
+
+- `GeneratorModule`: Generates type definition files.
+
+- `ImporterModule`: Imports compiled modules.
+
+- `PluginManagerModule`: Manages plugin loading and hook execution.
+
+- `ScannerModule`: Scans for files with decorators.
+
+These are internal but exposed for advanced use; refer to source for details.
+
+## Built-in Plugins
+
+### SwaggerPlugin
+
+Generates Swagger/OpenAPI documentation from endpoints.
+
+**Usage**
+
+```ts
+import { SwaggerPlugin } from 'apinni';
+
+const config: ApinniConfig = {
+  plugins: [SwaggerPlugin]
+};
+```
+
+### ProxySwaggerPlugin
+
+Proxies Swagger generation for custom setups.
+
+**Usage**
+
+```ts
+import { ProxySwaggerPlugin } from 'apinni';
+
+const config: ApinniConfig = {
+  plugins: [ProxySwaggerPlugin]
+};
+```
+
+For custom plugins, see [Plugins Guide](/docs/plugins).
+
+## Decorators
+
+Apinni provides decorators for defining APIs. For detailed usage, see individual guides:
+
+- [`@ApinniController`](/docs/decorators/apinni-controller): Defines controller base path.
+
+- [`@ApinniEndpoint`](/docs/decorators/apinni-endpoint): Defines endpoint details.
+
+- [`@ApinniDomain`](/docs/decorators/apinni-domain): Groups endpoints into domains.
+
+- [`@ApinniDisabled`](/docs/decorators/apinni-disabled): Excludes from generation.
+
+**Example**
+
+```ts
+import { ApinniController, ApinniEndpoint } from 'apinni';
+
+@ApinniController({ path: '/users' })
+class UserController {
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  getUser() {}
+}
+```
+
+<Admonition type="tip" title="Try It Out">
+Explore the API in a live TypeScript environment: [CodeSandbox Link](#).
+</Admonition>
+
+## Related Topics
+
+- [Installation](/docs/installation) – Get started with Apinni.
+- [Plugins](/docs/plugins) – Extend Apinni with custom plugins.
+
+<Admonition type="info">
+For source code and contributions, visit the [Apinni GitHub](https://github.com/apinni/apinni). Contact the [community](https://community.apinni.dev) for support.
+</Admonition>

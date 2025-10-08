@@ -1,0 +1,104 @@
+---
+id: backend-integration-2
+title: Backend Integration
+description: Guide to integrating Apinni with backend frameworks like Express, NestJS, or Fastify.
+---
+
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
+
+Apinni is framework-agnostic but shines when integrated with backend frameworks. This guide covers setup with popular frameworks, ensuring your controllers and endpoints generate accurate types.
+
+<Admonition type="info" title="Framework Compatibility">
+Apinni works with any TypeScript backend that supports decorators, including Express, NestJS, Koa, and more.
+</Admonition>
+
+## Integrating with NestJS
+
+NestJS natively supports decorators, making it a great fit.
+
+### Step 1: Install Dependencies
+
+```sh
+npm install apinni @nestjs/common @nestjs/core
+```
+
+### Step 2: Define Controllers
+
+Use Apinni decorators alongside NestJS ones:
+
+```ts title="src/controllers/user.controller.ts"
+import { Controller, Get, Param } from '@nestjs/common';
+import { ApinniController, ApinniEndpoint } from 'apinni';
+
+@ApinniController({ path: '/users' })
+@Controller('users')
+export class UserController {
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  @Get(':id')
+  getUser(@Param('id') id: string) {
+    return { id, name: 'User' };
+  }
+}
+```
+
+### Step 3: Generate Types
+
+Run `apinni` to produce types compatible with your NestJS app.
+
+<Admonition type="tip">
+Use the Nest plugin for enhanced integration (see [Built-in Plugins](/docs/plugins/overview)).
+</Admonition>
+
+## Integrating with Express
+
+For Express, map Apinni decorators to routes.
+
+### Step 1: Setup
+
+```sh
+npm install apinni express @types/express
+```
+
+### Step 2: Define and Mount Controllers
+
+```ts title="src/controllers/user.controller.ts"
+import { ApinniController, ApinniEndpoint } from 'apinni';
+
+@ApinniController({ path: '/users' })
+class UserController {
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  getUser(req, res) {
+    res.json({ id: req.params.id, name: 'User' });
+  }
+}
+```
+
+Mount in app:
+
+```ts title="app.ts"
+import express from 'express';
+// Assume a function to mount Apinni controllers
+mountApinniControllers(app);
+```
+
+### Custom Mounting
+
+Implement a mounting function to register routes based on metadata.
+
+<Admonition type="warning">
+Ensure runtime metadata is enabled in `tsconfig.json`.
+</Admonition>
+
+## Best Practices
+
+- Combine with framework decorators for dual-purpose code.
+- Use domains to organize large apps.
+- Integrate with build scripts for CI/CD.
+
+For more, see [Best Practices](/docs/guides/best-practices).
+
+<Admonition type="info">
+Questions? Join the [community](https://community.apinni.dev).
+</Admonition>
