@@ -8,6 +8,10 @@
   "bin": {
     "apinni": "dist/cli.js"
   },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Apinni/client-ts.git"
+  },
   "exports": {
     ".": {
       "import": {
@@ -44,7 +48,8 @@
     "node": ">=16.0.0"
   },
   "publishConfig": {
-    "access": "public"
+    "access": "public",
+    "provenance": true
   },
   "dependencies": {
     "bundle-require": "^5.1.0",
