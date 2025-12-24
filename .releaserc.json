@@ -4,8 +4,41 @@
     "master"
   ],
   "plugins": [
-    "@semantic-release/commit-analyzer",
-    "@semantic-release/release-notes-generator",
+    [
+      "@semantic-release/commit-analyzer",
+      {
+        "preset": "conventionalcommits",
+        "releaseRules": [
+          { "type": "docs", "release": false },
+          { "type": "refactor", "release": false },
+          { "type": "style", "release": false },
+          { "type": "infrastructure", "release": false }
+        ]
+      }
+    ],
+    [
+      "@semantic-release/release-notes-generator",
+      {
+        "preset": "conventionalcommits",
+        "presetConfig": {
+          "types": [
+            { "type": "feat", "section": "Features" },
+            { "type": "fix", "section": "Bug Fixes" },
+            { "type": "perf", "section": "Performance Improvements" },
+            { "type": "revert", "section": "Reverts" },
+            
+            { "type": "docs", "hidden": true },
+            { "type": "style", "hidden": true },
+            { "type": "chore", "hidden": true },
+            { "type": "refactor", "hidden": true },
+            { "type": "test", "hidden": true },
+            { "type": "build", "hidden": true },
+            { "type": "ci", "hidden": true },
+            { "type": "infrastructure", "hidden": true }
+          ]
+        }
+      }
+    ],
     [
       "@semantic-release/changelog",
       {
