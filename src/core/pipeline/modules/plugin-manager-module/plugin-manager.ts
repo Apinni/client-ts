@@ -107,8 +107,10 @@ export class PluginManagerModule {
         }
     }
 
-    private runOnInitializeHook(...params: HooksParams['onInitialize']) {
-        this.plugins.forEach(plugin => plugin.hooks.onInitialize(...params));
+    private async runOnInitializeHook(...params: HooksParams['onInitialize']) {
+        await Promise.all(
+            this.plugins.map(plugin => plugin.hooks.onInitialize(...params))
+        );
     }
 
     private runOnAfterDecoratorProcessed() {

@@ -9,11 +9,35 @@ import {
     TypeChecker,
 } from 'ts-morph';
 
+import {
+    AllOfSchema,
+    AnyOfSchema,
+    AnySchema,
+    ArrayItemMeta,
+    ArraySchema,
+    BooleanSchema,
+    EnumSchema,
+    JsonSchema,
+    NeverSchema,
+    NullSchema,
+    NumberSchema,
+    ObjectSchema,
+    SchemaBuilderEntry,
+    StringSchema,
+    TypesSchema,
+    UndefinedSchema,
+} from '../../types';
+import {
+    extractJSDocsToDefinitionProperties,
+    mergeWithJSDocs,
+    resolveNodeByType,
+} from './utils';
+
 const isBuiltInTypeSymbol = (symbol?: Symbol) => {
     const declarations = symbol?.getDeclarations() || [];
     if (!declarations.length) return false;
 
-    return declarations.every(decl => {
+    return declarations.some(decl => {
         const sourceFile = decl.getSourceFile();
         const filePath = sourceFile.getFilePath();
 
@@ -59,7 +83,7 @@ export function getTypeAndNode(
 
     const variable = sourceFile.getVariableDeclaration(inputType);
     if (variable && variable.getTypeNode()) {
-        return { type: variable.getType(), node: variable };
+        return { type: variable.getType(), node: variable.getTypeNode() };
     }
 
     const tempAliasName = `Internal_${nameIfCustomType || Date.now()}`;
@@ -79,96 +103,40 @@ export function getTypeAndNode(
     return null;
 }
 
-type JsonSchemaType =
-    | 'string'
-    | 'number'
-    | 'boolean'
-    | 'null'
-    | 'object'
-    | 'array'
-    | 'enum'
-    | 'ref';
+const getTupleElementsMetadata = (type: Type) => {
+    const targetType = type.getTargetType(); // It gonna unwrap everything to [?, ?, ..]
 
-interface BaseJsonSchema {
-    type?: JsonSchemaType;
-}
+    if (!targetType) {
+        return null;
+    }
 
-interface StringSchema extends BaseJsonSchema {
-    type: 'string';
-    const?: string;
-}
+    const tsType = targetType.compilerType;
 
-interface NumberSchema extends BaseJsonSchema {
-    type: 'number';
-    const?: number;
-}
+    const isTuple =
+        (tsType.flags & ts.TypeFlags.Object) !== 0 &&
+        ((tsType as ts.ObjectType).objectFlags & ts.ObjectFlags.Tuple) !== 0;
 
-interface BooleanSchema extends BaseJsonSchema {
-    type: 'boolean';
-    const?: boolean;
-}
+    if (!isTuple) return null;
 
-interface NullSchema extends BaseJsonSchema {
-    type: 'null';
-}
+    const tuple = tsType as ts.TupleType;
 
-interface EnumSchema extends BaseJsonSchema {
-    type: 'enum';
-    values: (string | number | boolean)[];
-}
+    const metadata = tuple.elementFlags.reduce(
+        (acc, flag, index) => ({
+            ...acc,
+            [index]: {
+                rest: (flag & ts.ElementFlags.Rest) !== 0,
+                optional: (flag & ts.ElementFlags.Optional) !== 0,
+                ...(tuple.labeledElementDeclarations?.[index] && {
+                    name: tuple.labeledElementDeclarations[
+                        index
+                    ].name.getText(),
+                }),
+            },
+        }),
+        {} as Record<number, ArrayItemMeta>
+    );
 
-interface ArraySchema extends BaseJsonSchema {
-    type: 'array';
-    items: JsonSchema | JsonSchema[];
-}
-
-interface ObjectSchema extends BaseJsonSchema {
-    type: 'object';
-    properties: Record<string, JsonSchema>;
-    required?: string[];
-    indexedProperties?: JsonSchema;
-}
-
-interface RefSchema extends BaseJsonSchema {
-    type: 'ref';
-    name: string;
-}
-
-interface AnyOfSchema extends BaseJsonSchema {
-    anyOf: JsonSchema[];
-}
-
-interface AllOfSchema extends BaseJsonSchema {
-    allOf: JsonSchema[];
-}
-
-interface NotSchema extends BaseJsonSchema {
-    not: JsonSchema;
-}
-
-type JsonSchema =
-    | StringSchema
-    | NumberSchema
-    | BooleanSchema
-    | NullSchema
-    | EnumSchema
-    | ArraySchema
-    | ObjectSchema
-    | RefSchema
-    | AnyOfSchema
-    | AllOfSchema
-    | NotSchema
-    | object;
-
-type Entry =
-    | { name: string; model: string }
-    | { name: string; type: Type; node?: Node }
-    | { name: string; inline: string };
-
-export type TypesSchema = {
-    schema: Record<string, JsonSchema>;
-    refs: Record<string, JsonSchema>;
-    mappedReferences: Record<string, string>;
+    return metadata;
 };
 
 export class SchemaBuilderModule {
@@ -191,11 +159,15 @@ export class SchemaBuilderModule {
     private handlers = [
         {
             condition: type => type.isAny() || type.isUnknown(),
-            resolver: (): JsonSchema => ({}),
+            resolver: (): AnySchema => ({ type: 'any' }),
         },
         {
             condition: type => type.isNever(),
-            resolver: (): NotSchema => ({ not: {} }),
+            resolver: (): NeverSchema => ({ type: 'never' }),
+        },
+        {
+            condition: type => type.isUndefined(),
+            resolver: (): UndefinedSchema => ({ type: 'undefined' }),
         },
         {
             condition: type => type.isNull(),
@@ -242,7 +214,13 @@ export class SchemaBuilderModule {
                     .map(t => t.getLiteralValue())
                     .filter((v): v is string | number => v !== undefined);
 
-                return { type: 'enum', values };
+                return mergeWithJSDocs(
+                    {
+                        type: 'enum',
+                        values,
+                    },
+                    type
+                );
             },
         },
         {
@@ -253,7 +231,8 @@ export class SchemaBuilderModule {
             condition: type => type.getSymbol()?.getName() === 'Promise',
             resolver: ({ type, ...rest }): JsonSchema => {
                 const wrappedType = type.getTypeArguments()[0];
-                return this.convert({ type: wrappedType, ...rest });
+                const node = resolveNodeByType(wrappedType);
+                return this.convert({ type: wrappedType, ...rest, node });
             },
         },
         {
@@ -282,10 +261,12 @@ export class SchemaBuilderModule {
             type: Type;
             node?: Node;
             name?: string;
+            seenSymbols?: Set<Symbol>;
+            trace?: string[];
         }) => JsonSchema;
     }>;
 
-    public generateSchema(entries: Array<Entry>): TypesSchema {
+    public generateSchema(entries: Array<SchemaBuilderEntry>): TypesSchema {
         this.referencesMaps = new Map();
         const schema: Record<string, JsonSchema> = {};
 
@@ -302,22 +283,30 @@ export class SchemaBuilderModule {
         for (const entry of entriesWithTypeAndNodes) {
             if (!entry.name) continue;
 
+            const aliasSymbol = entry.type.getAliasSymbol();
+            const targetAliasSymbol = entry.type
+                .getTargetType()
+                ?.getAliasSymbol();
+
             // If type is actually inline it - it will equal target type
             if (
-                entry.type.getAliasSymbol() ===
-                    entry.type.getTargetType()?.getAliasSymbol() &&
+                Boolean(aliasSymbol || targetAliasSymbol) &&
+                aliasSymbol === targetAliasSymbol &&
                 entry.node
             ) {
                 const alias = entry.node.getSourceFile().addTypeAlias({
                     name: `__temp__${Date.now()}`,
                     type: entry.type.getText(),
                 });
+                const type = alias.getType();
+                const node = alias.getTypeNode();
 
                 schema[entry.name] = this.convert({
-                    type: alias?.getType(),
-                    node: alias,
+                    type,
+                    node,
                     name: entry.name,
                 });
+
                 alias.remove();
             } else {
                 schema[entry.name] = this.convert(entry);
@@ -419,12 +408,17 @@ export class SchemaBuilderModule {
         node,
         name,
         reference,
+        seenSymbols = new Set<Symbol>(),
+        trace = [],
     }: {
         type: Type;
         node?: Node;
         name?: string;
         reference?: string;
+        seenSymbols?: Set<Symbol>;
+        trace?: string[];
     }): JsonSchema {
+        // console.log(type.getText(), name, node?.getKindName());
         const aliasSymbol = type.getAliasSymbol();
         const targetAliasSymbol = type.getTargetType()?.getAliasSymbol();
         const symbol = type.getSymbol();
@@ -435,9 +429,19 @@ export class SchemaBuilderModule {
             this.referencesMaps.set(referenceMapName, new Map());
         }
 
+        if (trace.length > 100) {
+            return {
+                type: 'any',
+            };
+        }
+
         const referenceName =
             (!targetAliasSymbol || targetAliasSymbol === aliasSymbol) &&
             (aliasSymbol?.getName() || symbol?.getName());
+
+        const identitySymbol =
+            (!targetAliasSymbol || targetAliasSymbol === aliasSymbol) &&
+            (aliasSymbol || symbol);
 
         if (
             referenceName &&
@@ -449,6 +453,9 @@ export class SchemaBuilderModule {
             const args = type.getAliasTypeArguments();
 
             if (args.length > 0) {
+                const clonedSeen = new Set(seenSymbols);
+                if (identitySymbol) clonedSeen.add(identitySymbol);
+
                 for (const arg of args) {
                     const argName = arg.getAliasSymbol()?.getName();
 
@@ -466,6 +473,7 @@ export class SchemaBuilderModule {
                             node,
                             name: referenceMapName,
                             reference: argName,
+                            seenSymbols: clonedSeen,
                         })
                     );
                 }
@@ -475,13 +483,19 @@ export class SchemaBuilderModule {
                 return this.convert({
                     type: target,
                     node,
+                    name: referenceMapName,
                     reference: referenceName,
+                    seenSymbols: clonedSeen,
+                    trace: [...trace, referenceMapName],
                 });
             }
 
             if (
                 !this.referencesMaps.get(referenceMapName)?.has(referenceName)
             ) {
+                const clonedSeen = new Set(seenSymbols);
+                if (identitySymbol) clonedSeen.add(identitySymbol);
+
                 this.referencesMaps.get(referenceMapName)?.set(
                     referenceName,
                     this.convert({
@@ -489,11 +503,16 @@ export class SchemaBuilderModule {
                         node,
                         name: referenceMapName,
                         reference: referenceName,
+                        seenSymbols: clonedSeen,
+                        trace: [...trace, referenceName],
                     })
                 );
             }
 
-            return { type: 'ref', name: referenceName };
+            return {
+                type: 'ref',
+                name: referenceName,
+            };
         }
 
         const resolver = this.handlers.find(handler =>
@@ -501,10 +520,20 @@ export class SchemaBuilderModule {
         )?.resolver;
 
         if (!resolver) {
-            return {};
+            return {
+                type: 'any',
+            };
         }
 
-        return resolver({ type, node, name: referenceMapName });
+        const result = resolver({
+            type,
+            node,
+            name: referenceMapName,
+            seenSymbols,
+            trace: [...trace, referenceMapName],
+        });
+
+        return mergeWithJSDocs(result, type);
     }
 
     private handleArray({
@@ -519,7 +548,11 @@ export class SchemaBuilderModule {
 
         return {
             type: 'array',
-            items: this.convert({ type: elementType, ...rest }),
+            items: this.convert({
+                type: elementType,
+                ...rest,
+                node: resolveNodeByType(elementType),
+            }),
         };
     }
 
@@ -533,11 +566,26 @@ export class SchemaBuilderModule {
     }): ArraySchema {
         const tupleTypes = type.getTupleElements();
 
-        const items = tupleTypes.map(tuple =>
-            this.convert({ type: tuple, ...rest })
-        );
+        const metadata = getTupleElementsMetadata(type);
 
-        return { type: 'array', items };
+        const items = tupleTypes
+            // .filter((_, index) => index !== restIndex)
+            .map((tuple, index) => {
+                console.log(tuple.getText(), tuple.compilerType.getBaseTypes());
+                return {
+                    ...this.convert({
+                        type: tuple,
+                        ...rest,
+                        node: resolveNodeByType(tuple),
+                    }),
+                    ...metadata?.[index],
+                };
+            });
+
+        return {
+            type: 'array',
+            items,
+        };
     }
 
     private handleUnion({
@@ -553,31 +601,64 @@ export class SchemaBuilderModule {
             .filter(union => !union.isUndefined());
 
         if (unionTypes.length === 1) {
-            return this.convert({ type: unionTypes[0], ...rest }) as JsonSchema;
+            return this.convert({
+                type: unionTypes[0],
+                ...rest,
+                node: resolveNodeByType(unionTypes[0]) || rest.node,
+            }) as JsonSchema;
         }
 
-        const isMappedBoolean = unionTypes.every(union =>
-            union.isBooleanLiteral()
-        );
+        const isMappedBoolean =
+            unionTypes.some(
+                union => union.isBooleanLiteral() && union.getText() === 'false'
+            ) &&
+            unionTypes.some(
+                union => union.isBooleanLiteral() && union.getText() === 'true'
+            );
+        let filteredBoolean = unionTypes;
         if (isMappedBoolean) {
-            return {
-                type: 'boolean',
-            };
+            filteredBoolean = unionTypes.filter(
+                union => !union.isBooleanLiteral()
+            );
         }
 
-        const allLiterals = unionTypes.every(union => union.isLiteral());
+        console.log({
+            filteredBoolean,
+            isMappedBoolean,
+            type: type.getText(),
+            name: rest.name,
+            node: rest.node?.getText(),
+        });
+
+        const allLiterals =
+            filteredBoolean.length > 0 &&
+            filteredBoolean.every(union => union.isLiteral());
+        console.log({ allLiterals });
         if (allLiterals) {
             return {
                 type: 'enum',
-                values: unionTypes.map(union => union.getLiteralValue()),
+                values: filteredBoolean
+                    .map(union => union.getLiteralValue())
+                    .filter(Boolean) as EnumSchema['values'],
             };
         }
 
-        const definitions = unionTypes.map(union =>
-            this.convert({ type: union, ...rest })
-        );
+        if (!filteredBoolean.length && isMappedBoolean) {
+            return mergeWithJSDocs({ type: 'boolean' }, type);
+        }
 
-        return { anyOf: definitions };
+        const definitions = [
+            ...filteredBoolean.map(union =>
+                this.convert({
+                    type: union,
+                    ...rest,
+                    node: resolveNodeByType(union) || rest.node,
+                })
+            ),
+            ...(isMappedBoolean ? [{ type: 'boolean' as const }] : []),
+        ];
+
+        return mergeWithJSDocs({ type: 'complex', anyOf: definitions }, type);
     }
 
     private handleIntersection({
@@ -591,29 +672,37 @@ export class SchemaBuilderModule {
         const intersectionTypes = type.getIntersectionTypes();
 
         const definitions = intersectionTypes.map(intersection =>
-            this.convert({ type: intersection, ...rest })
+            this.convert({
+                type: intersection,
+                ...rest,
+                node: resolveNodeByType(intersection) || rest.node,
+            })
         );
 
-        return { allOf: definitions };
+        return mergeWithJSDocs({ type: 'complex', allOf: definitions }, type);
     }
 
     private handleObject({
         type,
+        seenSymbols = new Set(),
+        trace = [],
         ...rest
     }: {
         type: Type<ts.ObjectType>;
         node?: Node;
         name?: string;
+        seenSymbols?: Set<Symbol>;
+        trace?: string[];
     }): ObjectSchema {
         const properties: { [key: string]: any } = {};
         const required: string[] = [];
 
         const isMappedType = Boolean(type.getTargetType());
 
-        for (const prop of type.getApparentProperties()) {
+        for (const prop of type.getProperties()) {
             let propType: Type | null = null;
 
-            if (isMappedType && rest.node) {
+            if (isMappedType && !type.isClass() && rest.node) {
                 propType = resolvePropertyTypeByChecker(
                     this.checker,
                     prop,
@@ -621,12 +710,26 @@ export class SchemaBuilderModule {
                 );
             } else {
                 const decl = prop.getDeclarations()[0];
-                if (decl) {
-                    propType =
-                        decl.isKind(SyntaxKind.PropertySignature) ||
-                        decl.isKind(SyntaxKind.PropertyAssignment)
-                            ? decl.getType()
-                            : null;
+
+                if (decl && decl.isKind(SyntaxKind.MethodDeclaration)) {
+                    continue;
+                }
+
+                if (
+                    decl &&
+                    (decl.isKind(SyntaxKind.PropertySignature) ||
+                        decl.isKind(SyntaxKind.PropertyAssignment) ||
+                        decl.isKind(SyntaxKind.PropertyDeclaration))
+                ) {
+                    propType = decl.getType();
+
+                    // uncomment in future when add support of class transformation
+                    // console.log(
+                    //     decl.isKind(SyntaxKind.PropertyDeclaration) &&
+                    //         decl
+                    //             .getDecorators()
+                    //             .map(decorator => decorator.getName())
+                    // );
                 }
 
                 if (!propType) {
@@ -644,7 +747,22 @@ export class SchemaBuilderModule {
 
             const propName = prop.getEscapedName();
 
-            properties[propName] = this.convert({ type: propType, ...rest });
+            const propNode =
+                prop.getDeclarations()[0] ||
+                (propType.getAliasSymbol()?.getDeclarations()[0] as Node) ||
+                null;
+
+            properties[propName] = {
+                ...this.convert({
+                    type: propType,
+                    trace: [...trace, propName],
+                    seenSymbols,
+                    ...rest,
+                    node: propNode || undefined,
+                }),
+                ...(Node.isJSDocable(propNode) &&
+                    extractJSDocsToDefinitionProperties(propNode.getJsDocs())),
+            };
 
             if (!prop.isOptional()) {
                 required.push(propName);
@@ -666,10 +784,15 @@ export class SchemaBuilderModule {
         if (indexType) {
             schema.indexedProperties = this.convert({
                 type: indexType,
+                trace: [...trace, 'index_type'],
                 ...rest,
             });
         }
 
-        return schema;
+        return {
+            ...schema,
+            ...(Node.isJSDocable(rest.node) &&
+                extractJSDocsToDefinitionProperties(rest.node.getJsDocs())),
+        };
     }
 }

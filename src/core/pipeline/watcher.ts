@@ -134,10 +134,14 @@ export class Watcher {
         // Step 1: Initialize plugins and registry (only for coldStart)
         if (event === 'coldStart') {
             try {
-                await this.pluginManager.executeHook('onInitialize', {
-                    register: (definition: any) =>
-                        this.decoratorRegistry.register(definition),
-                });
+                await this.pluginManager.executeHook(
+                    'onInitialize',
+                    {
+                        register: (definition: any) =>
+                            this.decoratorRegistry.register(definition),
+                    },
+                    'watch'
+                );
 
                 logInfo(
                     `Initialized plugins: ${this.pluginManager.getPluginsCount()}`
@@ -265,7 +269,9 @@ export class Watcher {
             this.config,
             this.scannerModule.getProject()
         );
-        await generatorModule.generate(meta);
+        const schema = await generatorModule.generate(meta);
+
+        await this.pluginManager.executeHook('onGenerateTypes', schema);
 
         const duration = (performance.now() - start) / 1000;
         logEventComplete(event, path, duration, meta.length);

@@ -61,7 +61,8 @@ export class Pipeline {
                                                 this.decoratorRegistry.register(
                                                     definition
                                                 ),
-                                        }
+                                        },
+                                        'default'
                                     );
 
                                     const pluginsCount =
@@ -234,8 +235,14 @@ export class Pipeline {
                                     const context =
                                         GenerationContext.getInstance();
 
-                                    await this.generatorModule.generate(
-                                        context.getPreparedData()
+                                    const schema =
+                                        await this.generatorModule.generate(
+                                            context.getPreparedData()
+                                        );
+
+                                    await this.pluginManager.executeHook(
+                                        'onGenerateTypes',
+                                        schema
                                     );
                                 },
                             },

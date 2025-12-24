@@ -2,9 +2,9 @@ import { IApiPathArgs } from 'swagger-express-ts';
 import { IApiOperationArgsBase } from 'swagger-express-ts/i-api-operation-args.base';
 import { Decorator, MethodDeclaration } from 'ts-morph';
 
-import { ShareableContext } from '@interfaces/shared';
+import { ShareableContext } from '@interfaces';
+import { extractDecoratorArgValue } from '@utils';
 
-import { extractDecoratorArgValue } from '../../src';
 import { ENDPOINT_DECORATORS } from './constants';
 
 type DecoratorNames = (typeof ENDPOINT_DECORATORS)[number];
@@ -118,6 +118,16 @@ export const finalize = (context: ShareableContext) => {
     });
 
     localContext.operations.forEach(operation => {
+        const query = operation.parameters?.query
+            ? {
+                  inline: `{${Object.entries(
+                      operation.parameters.query || {}
+                  ).map(
+                      ([key, data]) => `${key}: ${data.type || 'string'};`
+                  )}}`,
+              }
+            : null;
+
         const request = operation.parameters?.body?.model
             ? {
                   name: operation.parameters?.body?.name,
@@ -139,6 +149,9 @@ export const finalize = (context: ShareableContext) => {
         context.registerMethodMetadata(operation.target, operation.methodName, {
             method: operation.method,
             path: normalizeParams(operation.path || ''),
+            ...(query && {
+                query,
+            }),
             ...(request && {
                 request,
             }),

@@ -4,6 +4,715 @@ title: Best Practices
 description: Tips and recommendations for effectively using Apinni in your projects.
 ---
 
-# Work in progress
+import Admonition from '@theme/Admonition';
 
-Currently this page has no info yet.
+# Best Practices
+
+This guide covers best practices, patterns, and recommendations for using Apinni effectively in production applications.
+
+## Project Structure
+
+### Organize by Feature
+
+Structure your codebase by feature or domain rather than by technical layer:
+
+```
+src/
+├── users/
+│   ├── users.controller.ts
+│   ├── users.service.ts
+│   ├── users.repository.ts
+│   └── dto/
+│       ├── create-user.dto.ts
+│       ├── update-user.dto.ts
+│       └── user-response.dto.ts
+├── posts/
+│   ├── posts.controller.ts
+│   ├── posts.service.ts
+│   └── dto/
+└── auth/
+    ├── auth.controller.ts
+    └── dto/
+```
+
+<Admonition type="tip">
+Feature-based organization makes it easier to find related code and maintain boundaries between different parts of your application.
+</Admonition>
+
+### Separate DTOs from Entities
+
+Keep your Data Transfer Objects (DTOs) separate from database entities:
+
+```typescript
+// ✅ Good: Separate concerns
+// Entity (database model)
+interface UserEntity {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+// DTO (API response)
+interface UserDto {
+  id: string;
+  name: string;
+  email: string;
+}
+
+// DTO (API request)
+interface CreateUserDto {
+  name: string;
+  email: string;
+  password: string;
+}
+
+@ApinniController({ path: '/api/users' })
+export class UserController {
+  @ApinniEndpoint<{
+    request: { type: CreateUserDto };
+    responses: { 200: { type: UserDto } };
+  }>({ path: '/', method: 'POST' })
+  async createUser(data: CreateUserDto): Promise<UserDto> {
+    // Map DTO to entity, save, then map back to DTO
+    const entity = await this.userService.create(data);
+    return this.mapToDto(entity);
+  }
+}
+```
+
+## Type Definitions
+
+### Use Explicit Interfaces
+
+Always define explicit interfaces for your types rather than inline types:
+
+```typescript
+// ✅ Good: Explicit interface
+interface CreateUserRequest {
+  name: string;
+  email: string;
+  age?: number;
+  preferences?: {
+    newsletter: boolean;
+    notifications: boolean;
+  };
+}
+
+@ApinniEndpoint<{
+  request: { type: CreateUserRequest };
+}>({ path: '/', method: 'POST' })
+async createUser(data: CreateUserRequest) { }
+
+// ❌ Bad: Inline type
+@ApinniEndpoint({ path: '/', method: 'POST' })
+async createUser(data: { name: string; email: string }) { }
+```
+
+### Name Types Consistently
+
+Follow a consistent naming convention for your types:
+
+```typescript
+// Request DTOs
+interface CreateUserRequest { }
+interface UpdateUserRequest { }
+interface SearchUsersQuery { }
+
+// Response DTOs
+interface UserResponse { }
+interface UserListResponse { }
+interface UserDetailResponse { }
+
+// Error responses
+interface ValidationErrorResponse { }
+interface NotFoundErrorResponse { }
+```
+
+<Admonition type="tip">
+Consistent naming makes it easier to find types and understand their purpose at a glance.
+</Admonition>
+
+### Reuse Common Types
+
+Extract common patterns into reusable types:
+
+```typescript
+// Common types
+interface PaginationQuery {
+  page?: number;
+  limit?: number;
+  sort?: string;
+  order?: 'asc' | 'desc';
+}
+
+interface PaginatedResponse<T> {
+  data: T[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    totalPages: number;
+  };
+}
+
+// Usage
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+@ApinniEndpoint<{
+  query: { type: PaginationQuery };
+  responses: { 200: { type: PaginatedResponse<User> } };
+}>({ path: '/', method: 'GET' })
+async getUsers(query: PaginationQuery): Promise<PaginatedResponse<User>> {
+  // Implementation
+}
+```
+
+## Endpoint Design
+
+### Use RESTful Conventions
+
+Follow REST conventions for consistent API design:
+
+```typescript
+@ApinniController({ path: '/api/users' })
+export class UserController {
+  // GET /api/users - List all users
+  @ApinniEndpoint({ path: '/', method: 'GET' })
+  async listUsers() { }
+
+  // GET /api/users/:id - Get single user
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  async getUser() { }
+
+  // POST /api/users - Create user
+  @ApinniEndpoint({ path: '/', method: 'POST' })
+  async createUser() { }
+
+  // PUT /api/users/:id - Update user (full update)
+  @ApinniEndpoint({ path: '/:id', method: 'PUT' })
+  async updateUser() { }
+
+  // PATCH /api/users/:id - Partial update
+  @ApinniEndpoint({ path: '/:id', method: 'PATCH' })
+  async patchUser() { }
+
+  // DELETE /api/users/:id - Delete user
+  @ApinniEndpoint({ path: '/:id', method: 'DELETE' })
+  async deleteUser() { }
+}
+```
+
+### Handle Multiple Response Types
+
+Define all possible response types, including errors:
+
+```typescript
+interface UserResponse {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface ValidationError {
+  field: string;
+  message: string;
+}
+
+interface ErrorResponse {
+  message: string;
+  errors?: ValidationError[];
+}
+
+@ApinniEndpoint<{
+  request: { type: CreateUserRequest };
+  responses: {
+    200: { type: UserResponse };
+    400: { type: ErrorResponse };
+    401: { type: ErrorResponse };
+    500: { type: ErrorResponse };
+  };
+}>({ path: '/', method: 'POST' })
+async createUser(data: CreateUserRequest) {
+  try {
+    // Validation
+    if (!data.email) {
+      return {
+        status: 400,
+        body: {
+          message: 'Validation failed',
+          errors: [{ field: 'email', message: 'Email is required' }]
+        }
+      };
+    }
+
+    // Create user
+    const user = await this.userService.create(data);
+    return { status: 200, body: user };
+  } catch (error) {
+    return {
+      status: 500,
+      body: { message: 'Internal server error' }
+    };
+  }
+}
+```
+
+### Use Query Parameters Appropriately
+
+Define query parameters for filtering, sorting, and pagination:
+
+```typescript
+interface SearchUsersQuery {
+  search?: string;
+  role?: 'admin' | 'user' | 'guest';
+  status?: 'active' | 'inactive';
+  page?: number;
+  limit?: number;
+  sortBy?: 'name' | 'email' | 'createdAt';
+  order?: 'asc' | 'desc';
+}
+
+@ApinniEndpoint<{
+  query: { type: SearchUsersQuery };
+  responses: { 200: { type: PaginatedResponse<User> } };
+}>({ path: '/search', method: 'GET' })
+async searchUsers(query: SearchUsersQuery) {
+  // Implementation
+}
+```
+
+## Domain Organization
+
+### Use Domains for Large Projects
+
+For large applications, organize endpoints into logical domains:
+
+```typescript
+// Admin domain
+@ApinniDomain({ domains: ['admin'] })
+@ApinniController({ path: '/api/admin/users' })
+export class AdminUserController {
+  @ApinniEndpoint({ path: '/', method: 'GET' })
+  async listAllUsers() { }
+}
+
+// Public domain
+@ApinniDomain({ domains: ['public'] })
+@ApinniController({ path: '/api/users' })
+export class PublicUserController {
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  async getPublicProfile() { }
+}
+
+// Internal domain (for microservices)
+@ApinniDomain({ domains: ['internal'] })
+@ApinniController({ path: '/api/internal/users' })
+export class InternalUserController {
+  @ApinniEndpoint({ path: '/sync', method: 'POST' })
+  async syncUsers() { }
+}
+```
+
+This generates separate type files:
+- `admin-types.d.ts` - Admin endpoints
+- `public-types.d.ts` - Public endpoints
+- `internal-types.d.ts` - Internal endpoints
+
+<Admonition type="tip">
+Domain separation helps different teams work independently and makes it easier to manage access control and versioning.
+</Admonition>
+
+### Multiple Domains for Shared Endpoints
+
+Some endpoints might belong to multiple domains:
+
+```typescript
+// Available in both admin and public domains
+@ApinniDomain({ domains: ['admin', 'public'] })
+@ApinniController({ path: '/api/users' })
+export class UserController {
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  async getUser() { }
+
+  // Only in admin domain
+  @ApinniDisabled({ domains: { public: true, admin: false } })
+  @ApinniEndpoint({ path: '/:id', method: 'DELETE' })
+  async deleteUser() { }
+}
+```
+
+## Versioning
+
+### API Versioning Strategy
+
+Use path-based versioning for your APIs:
+
+```typescript
+// Version 1
+@ApinniDomain({ domains: ['v1'] })
+@ApinniController({ path: '/api/v1/users' })
+export class UserControllerV1 {
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  async getUser(): Promise<UserV1> {
+    return {
+      id: '123',
+      name: 'Alice',
+    };
+  }
+}
+
+// Version 2 with additional fields
+@ApinniDomain({ domains: ['v2'] })
+@ApinniController({ path: '/api/v2/users' })
+export class UserControllerV2 {
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  async getUser(): Promise<UserV2> {
+    return {
+      id: '123',
+      name: 'Alice',
+      email: 'alice@example.com',
+      avatar: 'https://...',
+    };
+  }
+}
+```
+
+This generates:
+- `v1-types.d.ts` - Version 1 API types
+- `v2-types.d.ts` - Version 2 API types
+
+## Development Workflow
+
+### Run in Watch Mode
+
+During development, run Apinni in watch mode:
+
+```json title="package.json"
+{
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run types:watch\"",
+    "dev:server": "nodemon src/index.ts",
+    "types:watch": "apinni watch"
+  }
+}
+```
+
+<Admonition type="tip">
+Watch mode automatically regenerates types when you modify controllers, keeping your frontend types in sync.
+</Admonition>
+
+### Pre-commit Hooks
+
+Ensure types are generated before committing:
+
+```json title="package.json"
+{
+  "husky": {
+    "hooks": {
+      "pre-commit": "npm run types:generate && git add types/"
+    }
+  }
+}
+```
+
+### CI/CD Integration
+
+Add type generation to your CI/CD pipeline:
+
+```yaml title=".github/workflows/ci.yml"
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions/setup-node@v2
+        with:
+          node-version: '18'
+      - run: npm ci
+      - run: npm run types:generate
+      - run: npm run build
+      - run: npm test
+```
+
+## Performance Optimization
+
+### Use Existing Build
+
+If you're already compiling your TypeScript, use the `--use-existing-build` flag:
+
+```json title="package.json"
+{
+  "scripts": {
+    "build": "tsc",
+    "types:generate": "npm run build && apinni generate --use-existing-build"
+  }
+}
+```
+
+This skips Apinni's compilation step and uses your existing build output.
+
+### Limit Include Patterns
+
+For large projects, be specific about which files to process:
+
+```typescript title="apinni.config.ts"
+export default {
+  includePatterns: [
+    'src/**/*.controller.ts',  // Only controller files
+    '!src/**/*.spec.ts',       // Exclude test files
+    '!src/**/*.test.ts',
+  ],
+  outputPath: './types',
+  plugins: [],
+};
+```
+
+## Testing
+
+### Test Generated Types
+
+Create tests to ensure your generated types match expectations:
+
+```typescript title="tests/types.test.ts"
+import type { ApiPaths, ApiResponsesByStatus } from '@/types/api-types';
+
+describe('Generated Types', () => {
+  it('should include all expected paths', () => {
+    const paths: ApiPaths[] = [
+      '/api/users',
+      '/api/users/:id',
+      '/api/posts',
+    ];
+    // Type check passes if all paths exist
+  });
+
+  it('should have correct response types', () => {
+    type UserResponse = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+    
+    const user: UserResponse = {
+      id: '123',
+      name: 'Alice',
+      email: 'alice@example.com',
+    };
+    
+    expect(user).toBeDefined();
+  });
+});
+```
+
+### Integration Tests
+
+Test your API with the generated types:
+
+```typescript title="tests/api.test.ts"
+import { apiClient } from '@/api/client';
+import type { ApiResponsesByStatus } from '@/types/api-types';
+
+describe('User API', () => {
+  it('should fetch user with correct type', async () => {
+    type UserResponse = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+    
+    const user = await apiClient.getUser('123');
+    
+    // TypeScript ensures user matches UserResponse
+    expect(user).toHaveProperty('id');
+    expect(user).toHaveProperty('name');
+    expect(user).toHaveProperty('email');
+  });
+});
+```
+
+## Error Handling
+
+### Consistent Error Responses
+
+Define standard error response types:
+
+```typescript
+interface ApiError {
+  message: string;
+  code: string;
+  details?: Record<string, unknown>;
+}
+
+interface ValidationError extends ApiError {
+  code: 'VALIDATION_ERROR';
+  details: {
+    fields: Array<{
+      field: string;
+      message: string;
+    }>;
+  };
+}
+
+interface NotFoundError extends ApiError {
+  code: 'NOT_FOUND';
+  details: {
+    resource: string;
+    id: string;
+  };
+}
+
+// Use in endpoints
+@ApinniEndpoint<{
+  responses: {
+    200: { type: User };
+    400: { type: ValidationError };
+    404: { type: NotFoundError };
+    500: { type: ApiError };
+  };
+}>({ path: '/:id', method: 'GET' })
+async getUser(id: string) { }
+```
+
+### Error Handling Utilities
+
+Create utilities for consistent error handling:
+
+```typescript
+export class ApiErrorHandler {
+  static handle(error: unknown) {
+    if (error instanceof ValidationError) {
+      return {
+        status: 400,
+        body: {
+          message: 'Validation failed',
+          code: 'VALIDATION_ERROR',
+          details: { fields: error.fields },
+        },
+      };
+    }
+
+    if (error instanceof NotFoundError) {
+      return {
+        status: 404,
+        body: {
+          message: error.message,
+          code: 'NOT_FOUND',
+          details: { resource: error.resource, id: error.id },
+        },
+      };
+    }
+
+    return {
+      status: 500,
+      body: {
+        message: 'Internal server error',
+        code: 'INTERNAL_ERROR',
+      },
+    };
+  }
+}
+```
+
+## Documentation
+
+### Document Complex Endpoints
+
+Add JSDoc comments to complex endpoints:
+
+```typescript
+/**
+ * Search users with advanced filtering options.
+ * 
+ * Supports pagination, sorting, and multiple filter criteria.
+ * Results are cached for 5 minutes.
+ * 
+ * @example
+ * // Search for active admin users
+ * GET /api/users/search?role=admin&status=active&page=1&limit=20
+ */
+@ApinniEndpoint<{
+  query: { type: SearchUsersQuery };
+  responses: { 200: { type: PaginatedResponse<User> } };
+}>({ path: '/search', method: 'GET' })
+async searchUsers(query: SearchUsersQuery) { }
+```
+
+### Maintain a Changelog
+
+Keep track of API changes:
+
+```markdown title="API_CHANGELOG.md"
+# API Changelog
+
+## v2.0.0 (2024-01-15)
+
+### Breaking Changes
+- Changed `/api/users/:id` response format
+- Removed deprecated `/api/legacy/users` endpoint
+
+### New Features
+- Added `/api/users/search` endpoint with advanced filtering
+- Added pagination support to `/api/users`
+
+### Bug Fixes
+- Fixed type mismatch in `/api/posts/:id` response
+```
+
+## Security
+
+### Exclude Sensitive Endpoints
+
+Use `@ApinniDisabled` for internal or sensitive endpoints:
+
+```typescript
+@ApinniController({ path: '/api/admin' })
+export class AdminController {
+  // Public admin endpoint
+  @ApinniEndpoint({ path: '/stats', method: 'GET' })
+  async getStats() { }
+
+  // Internal only - excluded from type generation
+  @ApinniDisabled({ disabled: true, reason: 'Internal use only' })
+  @ApinniEndpoint({ path: '/reset-database', method: 'POST' })
+  async resetDatabase() { }
+}
+```
+
+### Sanitize Response Types
+
+Don't expose sensitive fields in response types:
+
+```typescript
+// ❌ Bad: Exposes sensitive data
+interface UserResponse {
+  id: string;
+  name: string;
+  email: string;
+  passwordHash: string;  // ❌ Never expose this
+  apiKey: string;        // ❌ Never expose this
+}
+
+// ✅ Good: Only public fields
+interface UserResponse {
+  id: string;
+  name: string;
+  email: string;
+}
+
+// ✅ Good: Separate admin response
+interface AdminUserResponse extends UserResponse {
+  createdAt: string;
+  lastLogin: string;
+  roles: string[];
+}
+```
+
+## Next Steps
+
+- [Backend Integration](/docs/guides/backend-integration) - Framework-specific patterns
+- [Frontend Integration](/docs/guides/frontend-integration) - Client-side best practices
+- [Plugins](/docs/plugins/overview) - Extend Apinni with custom plugins
+- [CLI](/docs/cli) - Advanced CLI usage

@@ -47,10 +47,6 @@ const normalizeMetadata = (metadata: Partial<MethodMetadata>) =>
             )
     );
 
-const isDisabledGlobally = (domains?: ClassMetadata['disabledDomains']) => {
-    return Boolean(Object.keys(domains || {}).length === 1 && domains?.['*']);
-};
-
 export class GenerationContext implements IGenerationContext {
     private static instance: GenerationContext | null = null;
     private classMetadata: ClassMetadata[] = [];
@@ -138,66 +134,38 @@ export class GenerationContext implements IGenerationContext {
     }
 
     public getPreparedData(): InternalMethodMetadata[] {
-        const methods = this.methodMetadata
-            .filter(metadata => {
-                const classMetadata = this.classMetadata.find(
-                    cm =>
-                        cm.target === metadata.target ||
-                        cm.target === metadata.target.prototype?.constructor
-                );
-
-                if (
-                    !metadata.disabledDomains &&
-                    !classMetadata?.disabledDomains
-                ) {
-                    return true;
-                }
-
-                if (isDisabledGlobally(metadata.disabledDomains)) {
-                    return false;
-                }
-
-                if (
-                    !metadata.disabledDomains &&
-                    isDisabledGlobally(classMetadata?.disabledDomains)
-                ) {
-                    return false;
-                }
-
-                return true;
-            })
-            .map(metadata => {
-                const classMetadata = this.classMetadata.find(controller => {
-                    return controller.target === metadata.target;
-                });
-
-                let mergedDomains = {
-                    ...classMetadata?.disabledDomains,
-                };
-
-                if (typeof metadata.disabledDomains?.['*'] === 'boolean') {
-                    mergedDomains = {
-                        ...metadata.disabledDomains,
-                    };
-                } else {
-                    mergedDomains = {
-                        ...mergedDomains,
-                        ...metadata.disabledDomains,
-                    };
-                }
-
-                return {
-                    ...metadata,
-                    path: combinePaths(classMetadata?.path, metadata.path),
-                    domains: classMetadata?.domains,
-                    ...(Object.keys(mergedDomains).length && {
-                        disabledDomains: mergedDomains,
-                        disabledReason:
-                            metadata.disabledReason ||
-                            classMetadata?.disabledReason,
-                    }),
-                };
+        const methods = this.methodMetadata.map(metadata => {
+            const classMetadata = this.classMetadata.find(controller => {
+                return controller.target === metadata.target;
             });
+
+            let mergedDomains = {
+                ...classMetadata?.disabledDomains,
+            };
+
+            if (typeof metadata.disabledDomains?.['*'] === 'boolean') {
+                mergedDomains = {
+                    ...metadata.disabledDomains,
+                };
+            } else {
+                mergedDomains = {
+                    ...mergedDomains,
+                    ...metadata.disabledDomains,
+                };
+            }
+
+            return {
+                ...metadata,
+                path: combinePaths(classMetadata?.path, metadata.path),
+                domains: classMetadata?.domains,
+                ...(Object.keys(mergedDomains).length && {
+                    disabledDomains: mergedDomains,
+                    disabledReason:
+                        metadata.disabledReason ||
+                        classMetadata?.disabledReason,
+                }),
+            };
+        });
 
         return methods;
     }

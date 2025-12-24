@@ -14,11 +14,4 @@ export async function runApinni(
     await runner.run();
 }
 
-export type {
-    ApinniConfig,
-    ClassMetadata,
-    IGenerationContext,
-    MethodMetadata,
-    OverridedContext,
-} from '@interfaces';
-export * from '@interfaces/plugins';
+export type { PipelineOptions } from './core/pipeline';

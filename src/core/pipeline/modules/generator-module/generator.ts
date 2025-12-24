@@ -1,13 +1,21 @@
 import { mkdir, writeFile } from 'fs/promises';
 import { join, resolve } from 'path';
-import { Node, Project, Type } from 'ts-morph';
+import { Project } from 'ts-morph';
 
-import { ApinniConfig, InternalMethodMetadata } from '@interfaces';
+import { ApinniConfig, InternalMethodMetadata, JsonSchema } from '@interfaces';
 
 import { DEFAULT_UTILITY_TYPES, PROXY_TYPES } from './constants';
 import { DefinitionsResolverModule } from './submodules/definitions-resolver-module/definitions-resolver';
 import { SchemaBuilderModule } from './submodules/schema-builder-module/schema-builder';
 import { TypesLookupModule } from './submodules/types-lookup-module/types-lookup';
+import {
+    EndpointData,
+    NamedInlineTypeEntry,
+    NamedModelTypeEntry,
+    NamedTsTypeEntry,
+    SchemaBuilderEntry,
+    TypesSchema,
+} from './types';
 
 interface EndpointStructure {
     query?: string;
@@ -19,13 +27,21 @@ interface ApiStructure {
     [key: string]: { [method: string]: EndpointStructure };
 }
 
-export type EndpointData = {
-    path: string;
-    method: string;
-    query?: string;
-    request?: string;
-    responses?: Record<number, string>;
-};
+const isModelEntry = (
+    entry: SchemaBuilderEntry
+): entry is NamedModelTypeEntry => 'model' in entry;
+
+const isInlineEntry = (
+    entry: SchemaBuilderEntry
+): entry is NamedInlineTypeEntry => 'inline' in entry;
+
+const isTypeEntry = (entry: SchemaBuilderEntry): entry is NamedTsTypeEntry =>
+    'type' in entry;
+
+const isInlineOrTypeEntry = (
+    entry: SchemaBuilderEntry
+): entry is NamedTsTypeEntry | NamedInlineTypeEntry =>
+    isInlineEntry(entry) || isTypeEntry(entry);
 
 function buildApiStructure(endpoints: EndpointData[]): ApiStructure {
     const structure: ApiStructure = {};
@@ -130,56 +146,61 @@ export class GeneratorModule {
     async generate(endpointsMetadata: InternalMethodMetadata[]) {
         this.typesLookupModule.buildTypeIndexes();
 
-        const types = endpointsMetadata.flatMap(endpoint => {
-            const endpointTypes = [];
+        // const types = endpointsMetadata.flatMap(endpoint => {
+        //     const endpointTypes = [];
 
-            if (endpoint.query && !Array.isArray(endpoint.query)) {
-                endpointTypes.push(
-                    'model' in endpoint.query
-                        ? { model: endpoint.query.model }
-                        : {
-                              type: endpoint.query.type,
-                              node: endpoint.query.node,
-                          }
-                );
-            }
+        //     if (endpoint.query && !('inline' in endpoint.query)) {
+        //         endpointTypes.push(
+        //             'model' in endpoint.query
+        //                 ? { model: endpoint.query.model }
+        //                 : {
+        //                       type: endpoint.query.type,
+        //                       node: endpoint.query.node,
+        //                   }
+        //         );
+        //     }
 
-            if (endpoint.request && 'model' in endpoint.request) {
-                endpointTypes.push({ model: endpoint.request.model });
-            } else if (endpoint.request && 'type' in endpoint.request) {
-                endpointTypes.push({
-                    type: endpoint.request.type,
-                    node: endpoint.request.node,
-                });
-            }
+        //     if (endpoint.request && 'model' in endpoint.request) {
+        //         endpointTypes.push({ model: endpoint.request.model });
+        //     } else if (endpoint.request && 'type' in endpoint.request) {
+        //         endpointTypes.push({
+        //             type: endpoint.request.type,
+        //             node: endpoint.request.node,
+        //         });
+        //     }
 
-            if (endpoint.responses) {
-                Object.values(endpoint.responses).map(response => {
-                    if ('model' in response) {
-                        endpointTypes.push({ model: response.model });
-                    } else {
-                        endpointTypes.push({
-                            type: response.type,
-                            node: response.node,
-                        });
-                    }
-                });
-            }
+        //     if (endpoint.responses) {
+        //         Object.values(endpoint.responses).map(response => {
+        //             if ('model' in response) {
+        //                 endpointTypes.push({ model: response.model });
+        //             } else {
+        //                 endpointTypes.push({
+        //                     type: response.type,
+        //                     node: response.node,
+        //                 });
+        //             }
+        //         });
+        //     }
 
-            return endpointTypes as Array<
-                { model: string } | { type: Type; node?: Node }
-            >;
+        //     return endpointTypes as Array<
+        //         { model: string } | { type: Type; node?: Node }
+        //     >;
+        // });
+
+        // const typeDefinitions = this.typesLookupModule.lookup(
+        //     types.filter(info => 'model' in info).map(({ model }) => model)
+        // );
+
+        // this.schemaBuilderModule.storeCollectedTypes(
+        //     typeDefinitions.join('\n\n')
+        // );
+
+        const endpointsMap = new Map<string, number>();
+        const endpointsByDomain = new Map<string, string[]>();
+
+        endpointsMetadata.forEach((endpoint, index) => {
+            endpointsMap.set(endpoint.path, index);
         });
-
-        const typeDefinitions = this.typesLookupModule.lookup(
-            types.filter(info => 'model' in info).map(({ model }) => model)
-        );
-
-        this.schemaBuilderModule.storeCollectedTypes(
-            typeDefinitions.join('\n\n')
-        );
-
-        const endpointsByDomain = new Map<string, InternalMethodMetadata[]>();
 
         for (const endpoint of endpointsMetadata) {
             const domains = endpoint.domains || ['api'];
@@ -202,7 +223,7 @@ export class GeneratorModule {
                     endpointsByDomain.set(domain, []);
                 }
 
-                endpointsByDomain.get(domain)?.push(endpoint);
+                endpointsByDomain.get(domain)?.push(endpoint.path);
             });
         }
 
@@ -215,54 +236,170 @@ export class GeneratorModule {
 
         const promises = [] as Array<Promise<void>>;
 
-        for (const [domain, endpoints] of endpointsByDomain.entries()) {
-            const { resolvedEndpoints, typesToResolve } =
-                this.prepareEndpointsWithTypes(endpoints);
-
-            const schema =
-                this.schemaBuilderModule.generateSchema(typesToResolve);
-
-            const mappedEndpoints =
-                Object.keys(schema.mappedReferences).length > 0
-                    ? resolvedEndpoints.map(endpoint => {
-                          const { request, responses } = endpoint;
-                          const mappedRequest =
-                              schema.mappedReferences[request || ''] || request;
-
-                          const mappedResponses =
-                              responses &&
-                              Object.fromEntries(
-                                  Object.entries(responses).map(
-                                      ([status, response]) => [
-                                          status,
-                                          schema.mappedReferences[
-                                              response || ''
-                                          ] || response,
-                                      ]
-                                  )
-                              );
-
-                          return {
-                              ...endpoint,
-                              ...(mappedRequest && { request: mappedRequest }),
-                              ...(mappedResponses && {
-                                  responses: mappedResponses,
-                              }),
-                          };
-                      })
-                    : resolvedEndpoints;
-
-            await writeFile(
-                `my-schema-${domain}.json`,
-                JSON.stringify(schema, null, 2)
+        const { resolvedEndpoints, typesToResolve } =
+            this.prepareEndpointsWithTypes(
+                endpointsMetadata,
+                Array.from(endpointsByDomain.keys())
             );
 
+        const modelTypes = this.typesLookupModule.lookupNode(
+            typesToResolve.filter(isModelEntry)
+        );
+
+        const normalizedTypes: Array<NamedTsTypeEntry | NamedInlineTypeEntry> =
+            [...typesToResolve.filter(isInlineOrTypeEntry), ...modelTypes];
+
+        const schema = this.schemaBuilderModule.generateSchema(
+            normalizedTypes as SchemaBuilderEntry[]
+        );
+
+        const mappedEndpoints =
+            Object.keys(schema.mappedReferences).length > 0
+                ? resolvedEndpoints.map(endpoint => {
+                      const { request, responses, query } = endpoint;
+                      const mappedQuery =
+                          schema.mappedReferences[query || ''] || query;
+
+                      const mappedRequest =
+                          schema.mappedReferences[request || ''] || request;
+
+                      const mappedResponses =
+                          responses &&
+                          Object.fromEntries(
+                              Object.entries(responses).map(
+                                  ([status, response]) => [
+                                      status,
+                                      schema.mappedReferences[response || ''] ||
+                                          response,
+                                  ]
+                              )
+                          );
+
+                      return {
+                          ...endpoint,
+                          ...(mappedQuery && { query: mappedQuery }),
+                          ...(mappedRequest && { request: mappedRequest }),
+                          ...(mappedResponses && {
+                              responses: mappedResponses,
+                          }),
+                      };
+                  })
+                : resolvedEndpoints;
+
+        const apiSchema = {
+            endpoints: mappedEndpoints,
+            schema,
+        };
+
+        await writeFile(
+            'api-schema.json',
+            JSON.stringify(apiSchema, null, 2),
+            'utf-8'
+        );
+
+        for (const [domain, endpoints] of endpointsByDomain.entries()) {
+            const domainEndpoints = mappedEndpoints.filter(ep =>
+                endpoints.includes(ep.path)
+            );
+
+            const referencedNames = new Set<string>();
+            const toVisit = new Set<string>();
+
+            // Start with top-level references from endpoints (query/request/responses are strings)
+            domainEndpoints.forEach(ep => {
+                if (typeof ep.query === 'string' && ep.query) {
+                    toVisit.add(ep.query);
+                }
+                if (typeof ep.request === 'string' && ep.request) {
+                    toVisit.add(ep.request);
+                }
+                if (ep.responses) {
+                    Object.values(ep.responses).forEach(resp => {
+                        if (typeof resp === 'string' && resp) {
+                            toVisit.add(resp);
+                        }
+                    });
+                }
+            });
+
+            // Combined pool of all available schemas
+            const allSchemas: Record<string, JsonSchema> = {
+                ...schema.schema,
+                ...schema.refs,
+            };
+
+            // Traverse to collect all transitive references (BFS-style to handle dependencies)
+            while (toVisit.size > 0) {
+                const currentName = toVisit.values().next().value as string;
+                toVisit.delete(currentName);
+
+                if (referencedNames.has(currentName)) continue;
+                referencedNames.add(currentName);
+
+                const currentSchema = allSchemas[currentName];
+                if (!currentSchema) continue;
+
+                // Recursively collect nested refs from this schema
+                const collectNested = (s: JsonSchema) => {
+                    if (
+                        'type' in s &&
+                        s.type === 'ref' &&
+                        'name' in s &&
+                        s.name
+                    ) {
+                        if (!referencedNames.has(s.name)) {
+                            toVisit.add(s.name);
+                        }
+                        return;
+                    }
+
+                    if ('anyOf' in s && Array.isArray(s.anyOf)) {
+                        s.anyOf.forEach(collectNested);
+                    }
+                    if ('allOf' in s && Array.isArray(s.allOf)) {
+                        s.allOf.forEach(collectNested);
+                    }
+                    if ('properties' in s && s.properties) {
+                        Object.values(s.properties).forEach(collectNested);
+                    }
+                    if ('indexedProperties' in s && s.indexedProperties) {
+                        collectNested(s.indexedProperties);
+                    }
+                    if ('items' in s) {
+                        if (Array.isArray(s.items)) {
+                            s.items.forEach(collectNested);
+                        } else if (s.items) {
+                            collectNested(s.items);
+                        }
+                    }
+                    // Note: No need for enum/values, string/number/etc. as they don't ref
+                };
+
+                collectNested(currentSchema);
+            }
+
+            const domainSchema: Omit<TypesSchema, 'mappedReferences'> = {
+                schema: {},
+                refs: {},
+            };
+
+            console.log({ referencedNames: Array.from(referencedNames) });
+
+            for (const name of referencedNames) {
+                if (schema.schema[name]) {
+                    domainSchema.schema[name] = schema.schema[name];
+                }
+                if (schema.refs[name]) {
+                    domainSchema.refs[name] = schema.refs[name];
+                }
+            }
+
             const generatedTypes =
-                this.definitionsResolverModule.generate(schema);
+                this.definitionsResolverModule.generate(domainSchema);
 
             const output = this.assemblyOutput({
                 domain,
-                endpoints: mappedEndpoints,
+                endpoints: domainEndpoints,
                 typesDefinitions: generatedTypes,
             });
 
@@ -272,38 +409,25 @@ export class GeneratorModule {
             promises.push(writeFile(outputPath, output, 'utf-8'));
         }
 
-        return await Promise.all(promises);
+        await Promise.all(promises);
+
+        return apiSchema;
     }
 
-    private prepareEndpointsWithTypes(endpoints: InternalMethodMetadata[]) {
-        const resolvedEndpoints = [] as EndpointData[];
-        const typesToResolve = [] as (
-            | { name: string; model: string }
-            | { name: string; inline: string }
-            | { name: string; type: Type; node?: Node }
-        )[];
+    private prepareEndpointsWithTypes(
+        endpoints: InternalMethodMetadata[],
+        domains: string[]
+    ) {
+        const resolvedEndpoints: EndpointData[] = [];
+        const typesToResolve: SchemaBuilderEntry[] = [];
 
         for (const endpoint of endpoints) {
             const query = endpoint.query
                 ? {
-                      ...(Array.isArray(endpoint.query)
-                          ? {
-                                name: `${transformToName(endpoint)}Query`,
-                                inline: `{ ${endpoint.query.map(name => `${name}: string;`).join(' ')} }`,
-                            }
-                          : {
-                                name:
-                                    endpoint.query.name ||
-                                    `${transformToName(endpoint)}Query`,
-                                ...('model' in endpoint.query
-                                    ? {
-                                          model: endpoint.query.model,
-                                      }
-                                    : {
-                                          type: endpoint.query.type,
-                                          node: endpoint.query.node,
-                                      }),
-                            }),
+                      ...endpoint.query,
+                      name:
+                          ('name' in endpoint.query && endpoint.query.name) ||
+                          `${transformToName(endpoint)}Query`,
                   }
                 : null;
 
@@ -346,10 +470,27 @@ export class GeneratorModule {
                   )
                 : null;
 
+            const disabledDomains = endpoint.disabledDomains || {};
+
+            const wildcardDisabled = disabledDomains['*'] === true;
+
+            const resolvedDisabledDomains = domains.filter(domain => {
+                const setting = disabledDomains[domain];
+                return setting !== undefined ? setting : wildcardDisabled;
+            });
+
+            console.log(
+                endpoint.disabledDomains,
+                resolvedDisabledDomains,
+                domains
+            );
+
             resolvedEndpoints.push({
                 path: endpoint.path,
                 method: endpoint.method,
                 query: query?.name,
+                domains: endpoint.domains || ['api'],
+                disabledDomains: resolvedDisabledDomains,
                 request: request?.name,
                 responses: responses
                     ? Object.fromEntries(

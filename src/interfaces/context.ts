@@ -29,10 +29,15 @@ type TypeDefinition =
           node: Node;
       };
 
+type QueryDefinition = {
+    name?: string;
+    inline: string;
+};
+
 export interface MethodMetadata {
     path: string;
     method: string;
-    query?: TypeDefinition | Array<string>;
+    query?: TypeDefinition | QueryDefinition;
     request?: TypeDefinition;
     responses?: Record<number, TypeDefinition>;
     target: any;

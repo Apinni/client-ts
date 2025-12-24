@@ -6,3 +6,5 @@ export interface ApinniConfig {
     plugins: PluginTypes[];
     outputPath?: string;
 }
+
+export type ApinniRunMode = 'watch' | 'default';

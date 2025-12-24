@@ -3,6 +3,7 @@ import { ArrowRight, BookOpen, CheckCircle, Github, Rocket, Star, Zap } from 'lu
 import styles from './home-page.module.scss';
 
 import Link from '@docusaurus/Link'
+import Tag from '@theme/Tag';
 
 
 const Hero = () => (

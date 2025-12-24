@@ -71,4 +71,55 @@ type Paginated<T extends number> = {
                 expect.stringContaining('_v?: number')
         );
     });
+    it('should resolve duplicates', () => {
+        const project = new Project({
+            useInMemoryFileSystem: true,
+        });
+
+        //         project.createSourceFile(
+        //             'common.ts',
+        //             `
+        // export interface Entity {
+        //     id: string;
+        //     name: string;
+        // }
+        // `
+        //         );
+        project.createSourceFile(
+            'domain.ts',
+            `
+export interface Entity {
+    id: string;
+    source: string
+}
+`
+        );
+        project.createSourceFile(
+            'user.ts',
+            `
+import { Entity } from './domain';
+
+export interface Entity {
+    name: string;
+}
+
+export type GetUserResponse = Entity
+`
+        );
+
+        const typesLookup = new TypesLookupModule(project);
+        typesLookup.buildTypeIndexes();
+
+        const type = typesLookup.lookupNode([
+            { model: 'GetUserResponse', name: '' },
+        ])[0];
+        console.log(
+            'type' in type
+                ? [
+                      type.type.getSymbol()?.getName(),
+                      type.node.getSymbol()?.getName(),
+                  ]
+                : []
+        );
+    });
 });

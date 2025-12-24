@@ -1,26 +1,68 @@
+import {
+    AllOfSchema,
+    AnyOfSchema,
+    ArraySchema,
+    EnumSchema,
+    JsonSchema,
+    ObjectSchema,
+    TypesSchema,
+} from '../../types';
+import { SUPPORTED_JSDOCS_TAGS } from '../schema-builder-module/utils';
+
 export class DefinitionsResolverModule {
-    generate(data: {
-        schema: Record<string, any>;
-        refs: Record<string, any>;
-    }): string {
+    generate(data: Pick<TypesSchema, 'schema' | 'refs'>): string {
         const parts: string[] = [];
 
         // Handle references
         for (const [refName, refSchema] of Object.entries(data.refs)) {
             const refBody = this.schemaToTypeInternal(refSchema, 0);
+            const jsDocs = this.schemaToJSDoc(refSchema);
+            if (jsDocs) {
+                parts.push(jsDocs);
+            }
             parts.push(`export type ${refName} = ${refBody};`);
         }
 
         // Handle main schema entries
         for (const [schemaName, schemaDef] of Object.entries(data.schema)) {
             const body = this.schemaToTypeInternal(schemaDef, 0);
+            const jsDocs = this.schemaToJSDoc(schemaDef);
+            if (jsDocs) {
+                parts.push(jsDocs);
+            }
             parts.push(`export type ${schemaName} = ${body};`);
         }
 
         return parts.join('\n');
     }
 
-    private schemaToTypeInternal(schema: any, indentLevel: number): string {
+    private schemaToJSDoc(schema: JsonSchema | undefined): string {
+        if (!schema || typeof schema !== 'object') return '';
+
+        const schemaRecord = schema as unknown as Record<string, unknown>;
+        const lines: string[] = [];
+
+        if (schemaRecord.global) {
+            lines.push(` * ${String(schemaRecord.global)}`);
+        }
+
+        Object.keys(schemaRecord)
+            .filter(key =>
+                SUPPORTED_JSDOCS_TAGS.includes(
+                    key as (typeof SUPPORTED_JSDOCS_TAGS)[number]
+                )
+            )
+            .forEach(key => {
+                lines.push(` * @${key} ${String(schemaRecord[key])}`);
+            });
+
+        return lines.length ? `/**\n${lines.join('\n')}\n */` : '';
+    }
+
+    private schemaToTypeInternal(
+        schema: JsonSchema | undefined,
+        indentLevel: number
+    ): string {
         if (!schema || typeof schema !== 'object') return 'any';
 
         if (schema.type === 'ref' && schema.name) {
@@ -59,15 +101,15 @@ export class DefinitionsResolverModule {
             return this.handleEnumSchema(schema);
         }
 
-        if (schema.anyOf) {
+        if ('anyOf' in schema && schema.anyOf) {
             return this.handleUnionSchema(schema, indentLevel);
         }
 
-        if (schema.allOf) {
+        if ('allOf' in schema && schema.allOf) {
             return this.handleIntersectionSchema(schema, indentLevel);
         }
 
-        if (schema.not) {
+        if ('not' in (schema as unknown as Record<string, unknown>)) {
             return 'never';
         }
 
@@ -78,12 +120,29 @@ export class DefinitionsResolverModule {
         return '  '.repeat(level);
     }
 
-    private handleArraySchema(schema: any, indentLevel: number): string {
+    private handleArraySchema(
+        schema: ArraySchema,
+        indentLevel: number
+    ): string {
         if (Array.isArray(schema.items)) {
             const itemsTypes = schema.items
-                .map((item: any) =>
-                    this.schemaToTypeInternal(item, indentLevel)
-                )
+                .map((item: any) => {
+                    const type = this.schemaToTypeInternal(item, indentLevel);
+
+                    if (item.optional) {
+                        return item.name
+                            ? `${item.name}?: ${type}`
+                            : `${type}?`;
+                    }
+
+                    const prefix = item.name ? `${item.name}: ` : '';
+
+                    if (item.rest) {
+                        return `...${prefix}(${type})[]`;
+                    }
+
+                    return `${prefix}${type}`;
+                })
                 .join(', ');
             return `[${itemsTypes}]`;
         }
@@ -93,7 +152,10 @@ export class DefinitionsResolverModule {
         return needsParens ? `(${itemsType})[]` : `${itemsType}[]`;
     }
 
-    private handleObjectSchema(schema: any, indentLevel: number): string {
+    private handleObjectSchema(
+        schema: ObjectSchema,
+        indentLevel: number
+    ): string {
         const properties = schema.properties || {};
         const required = new Set(schema.required || []);
         const propLines: string[] = [];
@@ -118,11 +180,18 @@ export class DefinitionsResolverModule {
                 propSchema,
                 indentLevel + 1
             );
+            const propJSDoc = this.schemaToJSDoc(propSchema);
             const propNameFormatted = /^[A-Za-z_$][A-Za-z0-9_$]*$/.test(
                 propName
             )
                 ? propName
                 : `"${propName}"`;
+            propJSDoc
+                .split('\n')
+                .filter(Boolean)
+                .forEach(line =>
+                    propLines.push(`${this.getIndent(indentLevel + 1)}${line}`)
+                );
             propLines.push(
                 `${this.getIndent(indentLevel + 1)}${propNameFormatted}${isOptional ? '?' : ''}: ${propType};`
             );
@@ -132,7 +201,7 @@ export class DefinitionsResolverModule {
         return `{\n${propsStr}\n${this.getIndent(indentLevel)}}`;
     }
 
-    private handleEnumSchema(schema: any): string {
+    private handleEnumSchema(schema: EnumSchema): string {
         return schema.values
             .map((value: any) =>
                 typeof value === 'string' ? `"${value}"` : value
@@ -140,21 +209,31 @@ export class DefinitionsResolverModule {
             .join(' | ');
     }
 
-    private handleUnionSchema(schema: any, indentLevel: number): string {
-        const unionTypes = schema.anyOf.map((subSchema: any) => {
+    private handleUnionSchema(
+        schema: AnyOfSchema,
+        indentLevel: number
+    ): string {
+        const unionTypes = schema.anyOf.map(subSchema => {
             const subType = this.schemaToTypeInternal(subSchema, indentLevel);
             const needsParens =
-                !!subSchema.anyOf || subSchema.type === 'generic';
+                ('anyOf' in (subSchema as unknown as Record<string, unknown>) &&
+                    Array.isArray((subSchema as Partial<AnyOfSchema>).anyOf)) ||
+                subSchema.type === 'complex';
             return needsParens ? `(${subType})` : subType;
         });
         return unionTypes.join(' | ');
     }
 
-    private handleIntersectionSchema(schema: any, indentLevel: number): string {
-        const intersectionTypes = schema.allOf.map((subSchema: any) => {
+    private handleIntersectionSchema(
+        schema: AllOfSchema,
+        indentLevel: number
+    ): string {
+        const intersectionTypes = schema.allOf.map(subSchema => {
             const subType = this.schemaToTypeInternal(subSchema, indentLevel);
             // Only add parentheses for union or generic types, not objects
-            const needsParens = !!subSchema.anyOf;
+            const needsParens =
+                'anyOf' in (subSchema as unknown as Record<string, unknown>) &&
+                Array.isArray((subSchema as Partial<AnyOfSchema>).anyOf);
             return needsParens ? `(${subType})` : subType;
         });
         const indent = this.getIndent(indentLevel);

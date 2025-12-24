@@ -1,4 +1,5 @@
-import { buildPlugin } from '../../src/utils';
+import { buildPlugin } from '@utils';
+
 import { CONTROLLER_DECORATORS, ENDPOINT_DECORATORS } from './constants';
 import { ApiOperationHandler, ApiPathHandler, finalize } from './processor';
 

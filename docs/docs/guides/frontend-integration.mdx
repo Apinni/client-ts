@@ -1,9 +1,743 @@
 ---
 id: frontend-integration
 title: Frontend Integration
-description: Guide to consuming Apinni-generated types in frontend clients like React, Vue, or Angular.
+description: Guide to consuming Apinni-generated types in frontend clients like React, Vue, Angular, and Svelte.
 ---
 
-# Work in progress
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
 
-Currently this page has no info yet.
+# Frontend Integration
+
+Apinni generates TypeScript definitions that you can import into your frontend projects for fully type-safe API calls. This guide shows you how to use Apinni types with popular frontend frameworks and libraries.
+
+<Admonition type="info">
+**Framework Agnostic**: The generated types work with any frontend framework or library. You can use them with vanilla TypeScript, React, Vue, Angular, Svelte, or any other framework.
+</Admonition>
+
+## Understanding Generated Types
+
+When you run Apinni, it generates a type definition file with:
+
+1. **Response/Request Types** - Individual types for each endpoint
+2. **API Schema** - A complete map of your API structure
+3. **Utility Types** - Helper types for type-safe API consumption
+
+```typescript title="types/api-types.d.ts"
+// Individual types
+export interface GetApiUsersByIdResponse {
+  id: string;
+  name: string;
+  email: string;
+}
+
+// API Schema
+export type Api = {
+  '/api/users/:id': {
+    GET: {
+      query: never;
+      request: never;
+      responses: {
+        200: GetApiUsersByIdResponse;
+      };
+    };
+  };
+};
+
+// Utility types
+export type ApiPaths = '/api/users/:id';
+export type ApiAvailableMethods<T extends ApiPaths> = // ...
+export type ApiResponsesByStatus<Path, Method, Status> = // ...
+```
+
+## React
+
+### Basic Fetch API
+
+The simplest way to use Apinni types with React:
+
+```typescript title="src/hooks/useUser.ts"
+import { useState, useEffect } from 'react';
+import type { ApiResponsesByStatus } from '@/types/api-types';
+
+type User = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+
+export function useUser(id: string) {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/users/${id}`)
+      .then(res => res.json())
+      .then((data: User) => {
+        setUser(data);
+        setLoading(false);
+      })
+      .catch(err => {
+        setError(err);
+        setLoading(false);
+      });
+  }, [id]);
+
+  return { user, loading, error };
+}
+```
+
+```tsx title="src/components/UserProfile.tsx"
+import { useUser } from '@/hooks/useUser';
+
+export function UserProfile({ userId }: { userId: string }) {
+  const { user, loading, error } = useUser(userId);
+
+  if (loading) return <div>Loading...</div>;
+  if (error) return <div>Error: {error.message}</div>;
+  if (!user) return <div>User not found</div>;
+
+  return (
+    <div>
+      <h1>{user.name}</h1>
+      <p>{user.email}</p>
+    </div>
+  );
+}
+```
+
+### With TanStack Query (React Query)
+
+TanStack Query is perfect for managing server state with Apinni types:
+
+```typescript title="src/api/client.ts"
+import type { ApiResponsesByStatus, ApiRequest, ApiQuery } from '@/types/api-types';
+
+export const apiClient = {
+  async getUser(id: string) {
+    type Response = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+    
+    const res = await fetch(`/api/users/${id}`);
+    if (!res.ok) throw new Error('Failed to fetch user');
+    return res.json() as Promise<Response>;
+  },
+
+  async createUser(data: ApiRequest<'/api/users', 'POST'>) {
+    type Response = ApiResponsesByStatus<'/api/users', 'POST', '200'>;
+    
+    const res = await fetch('/api/users', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!res.ok) throw new Error('Failed to create user');
+    return res.json() as Promise<Response>;
+  },
+
+  async searchUsers(query: ApiQuery<'/api/users/search', 'GET'>) {
+    type Response = ApiResponsesByStatus<'/api/users/search', 'GET', '200'>;
+    
+    const params = new URLSearchParams(query as Record<string, string>);
+    const res = await fetch(`/api/users/search?${params}`);
+    if (!res.ok) throw new Error('Failed to search users');
+    return res.json() as Promise<Response>;
+  },
+};
+```
+
+```typescript title="src/hooks/useUsers.ts"
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { apiClient } from '@/api/client';
+
+export function useUser(id: string) {
+  return useQuery({
+    queryKey: ['user', id],
+    queryFn: () => apiClient.getUser(id),
+  });
+}
+
+export function useCreateUser() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: apiClient.createUser,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
+  });
+}
+
+export function useSearchUsers(query: Parameters<typeof apiClient.searchUsers>[0]) {
+  return useQuery({
+    queryKey: ['users', 'search', query],
+    queryFn: () => apiClient.searchUsers(query),
+  });
+}
+```
+
+```tsx title="src/components/UserList.tsx"
+import { useSearchUsers, useCreateUser } from '@/hooks/useUsers';
+
+export function UserList() {
+  const { data: users, isLoading } = useSearchUsers({ search: 'alice' });
+  const createUser = useCreateUser();
+
+  const handleCreate = () => {
+    createUser.mutate({
+      name: 'New User',
+      email: 'new@example.com',
+    });
+  };
+
+  if (isLoading) return <div>Loading...</div>;
+
+  return (
+    <div>
+      <button onClick={handleCreate}>Create User</button>
+      {users?.map(user => (
+        <div key={user.id}>
+          {user.name} - {user.email}
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+<Admonition type="tip">
+**TanStack Query** provides caching, background updates, and automatic refetching. Combined with Apinni types, you get a fully type-safe data fetching solution.
+</Admonition>
+
+### With Axios
+
+Create a type-safe Axios client:
+
+```typescript title="src/api/axios-client.ts"
+import axios, { AxiosInstance } from 'axios';
+import type { ApiResponsesByStatus, ApiRequest, ApiQuery } from '@/types/api-types';
+
+class ApiClient {
+  private client: AxiosInstance;
+
+  constructor(baseURL: string) {
+    this.client = axios.create({ baseURL });
+  }
+
+  async getUser(id: string) {
+    type Response = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+    const { data } = await this.client.get<Response>(`/api/users/${id}`);
+    return data;
+  }
+
+  async createUser(payload: ApiRequest<'/api/users', 'POST'>) {
+    type Response = ApiResponsesByStatus<'/api/users', 'POST', '200'>;
+    const { data } = await this.client.post<Response>('/api/users', payload);
+    return data;
+  }
+
+  async updateUser(id: string, payload: ApiRequest<'/api/users/:id', 'PUT'>) {
+    type Response = ApiResponsesByStatus<'/api/users/:id', 'PUT', '200'>;
+    const { data } = await this.client.put<Response>(`/api/users/${id}`, payload);
+    return data;
+  }
+
+  async deleteUser(id: string) {
+    await this.client.delete(`/api/users/${id}`);
+  }
+}
+
+export const apiClient = new ApiClient(import.meta.env.VITE_API_URL);
+```
+
+## Vue
+
+### With Composition API
+
+```typescript title="src/composables/useUser.ts"
+import { ref, computed } from 'vue';
+import type { ApiResponsesByStatus, ApiRequest } from '@/types/api-types';
+
+type User = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+type CreateUserRequest = ApiRequest<'/api/users', 'POST'>;
+
+export function useUser(id: string) {
+  const user = ref<User | null>(null);
+  const loading = ref(true);
+  const error = ref<Error | null>(null);
+
+  async function fetchUser() {
+    try {
+      loading.value = true;
+      const res = await fetch(`/api/users/${id}`);
+      user.value = await res.json();
+    } catch (e) {
+      error.value = e as Error;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  fetchUser();
+
+  return { user, loading, error };
+}
+
+export function useCreateUser() {
+  const loading = ref(false);
+  const error = ref<Error | null>(null);
+
+  async function createUser(data: CreateUserRequest) {
+    try {
+      loading.value = true;
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      return await res.json() as ApiResponsesByStatus<'/api/users', 'POST', '200'>;
+    } catch (e) {
+      error.value = e as Error;
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  }
+
+  return { createUser, loading, error };
+}
+```
+
+```vue title="src/components/UserProfile.vue"
+<script setup lang="ts">
+import { useUser } from '@/composables/useUser';
+
+const props = defineProps<{ userId: string }>();
+const { user, loading, error } = useUser(props.userId);
+</script>
+
+<template>
+  <div>
+    <div v-if="loading">Loading...</div>
+    <div v-else-if="error">Error: {{ error.message }}</div>
+    <div v-else-if="user">
+      <h1>{{ user.name }}</h1>
+      <p>{{ user.email }}</p>
+    </div>
+  </div>
+</template>
+```
+
+### With Pinia Store
+
+```typescript title="src/stores/user.ts"
+import { defineStore } from 'pinia';
+import type { ApiResponsesByStatus, ApiRequest } from '@/types/api-types';
+
+type User = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+type CreateUserRequest = ApiRequest<'/api/users', 'POST'>;
+
+export const useUserStore = defineStore('user', {
+  state: () => ({
+    users: [] as User[],
+    currentUser: null as User | null,
+    loading: false,
+    error: null as Error | null,
+  }),
+
+  actions: {
+    async fetchUser(id: string) {
+      this.loading = true;
+      try {
+        const res = await fetch(`/api/users/${id}`);
+        this.currentUser = await res.json();
+      } catch (e) {
+        this.error = e as Error;
+      } finally {
+        this.loading = false;
+      }
+    },
+
+    async createUser(data: CreateUserRequest) {
+      this.loading = true;
+      try {
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const user = await res.json() as User;
+        this.users.push(user);
+        return user;
+      } catch (e) {
+        this.error = e as Error;
+        throw e;
+      } finally {
+        this.loading = false;
+      }
+    },
+  },
+});
+```
+
+## Angular
+
+### With HttpClient Service
+
+```typescript title="src/app/services/user.service.ts"
+import { Injectable } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { Observable } from 'rxjs';
+import type { ApiResponsesByStatus, ApiRequest } from '@/types/api-types';
+
+type User = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+type CreateUserRequest = ApiRequest<'/api/users', 'POST'>;
+
+@Injectable({
+  providedIn: 'root'
+})
+export class UserService {
+  private apiUrl = '/api/users';
+
+  constructor(private http: HttpClient) {}
+
+  getUser(id: string): Observable<User> {
+    return this.http.get<User>(`${this.apiUrl}/${id}`);
+  }
+
+  createUser(data: CreateUserRequest): Observable<User> {
+    return this.http.post<User>(this.apiUrl, data);
+  }
+
+  updateUser(id: string, data: Partial<User>): Observable<User> {
+    return this.http.put<User>(`${this.apiUrl}/${id}`, data);
+  }
+
+  deleteUser(id: string): Observable<void> {
+    return this.http.delete<void>(`${this.apiUrl}/${id}`);
+  }
+}
+```
+
+```typescript title="src/app/components/user-profile/user-profile.component.ts"
+import { Component, OnInit } from '@angular/core';
+import { ActivatedRoute } from '@angular/router';
+import { UserService } from '@/app/services/user.service';
+import type { ApiResponsesByStatus } from '@/types/api-types';
+
+type User = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+
+@Component({
+  selector: 'app-user-profile',
+  templateUrl: './user-profile.component.html',
+})
+export class UserProfileComponent implements OnInit {
+  user: User | null = null;
+  loading = true;
+  error: Error | null = null;
+
+  constructor(
+    private route: ActivatedRoute,
+    private userService: UserService
+  ) {}
+
+  ngOnInit() {
+    const id = this.route.snapshot.paramMap.get('id');
+    if (id) {
+      this.userService.getUser(id).subscribe({
+        next: (user) => {
+          this.user = user;
+          this.loading = false;
+        },
+        error: (error) => {
+          this.error = error;
+          this.loading = false;
+        }
+      });
+    }
+  }
+}
+```
+
+## Svelte
+
+### With Svelte Stores
+
+```typescript title="src/lib/stores/user.ts"
+import { writable } from 'svelte/store';
+import type { ApiResponsesByStatus, ApiRequest } from '@/types/api-types';
+
+type User = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+type CreateUserRequest = ApiRequest<'/api/users', 'POST'>;
+
+function createUserStore() {
+  const { subscribe, set, update } = writable<{
+    user: User | null;
+    loading: boolean;
+    error: Error | null;
+  }>({
+    user: null,
+    loading: false,
+    error: null,
+  });
+
+  return {
+    subscribe,
+    fetchUser: async (id: string) => {
+      update(state => ({ ...state, loading: true }));
+      try {
+        const res = await fetch(`/api/users/${id}`);
+        const user = await res.json();
+        set({ user, loading: false, error: null });
+      } catch (error) {
+        set({ user: null, loading: false, error: error as Error });
+      }
+    },
+    createUser: async (data: CreateUserRequest) => {
+      update(state => ({ ...state, loading: true }));
+      try {
+        const res = await fetch('/api/users', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        const user = await res.json();
+        set({ user, loading: false, error: null });
+        return user;
+      } catch (error) {
+        set({ user: null, loading: false, error: error as Error });
+        throw error;
+      }
+    },
+  };
+}
+
+export const userStore = createUserStore();
+```
+
+```svelte title="src/routes/users/[id]/+page.svelte"
+<script lang="ts">
+  import { onMount } from 'svelte';
+  import { page } from '$app/stores';
+  import { userStore } from '$lib/stores/user';
+
+  onMount(() => {
+    userStore.fetchUser($page.params.id);
+  });
+</script>
+
+{#if $userStore.loading}
+  <div>Loading...</div>
+{:else if $userStore.error}
+  <div>Error: {$userStore.error.message}</div>
+{:else if $userStore.user}
+  <div>
+    <h1>{$userStore.user.name}</h1>
+    <p>{$userStore.user.email}</p>
+  </div>
+{/if}
+```
+
+## Building a Type-Safe API Client
+
+For larger applications, create a centralized API client:
+
+```typescript title="src/api/client.ts"
+import type {
+  ApiPaths,
+  ApiAvailableMethods,
+  ApiRequest,
+  ApiResponsesByStatus,
+  ApiQuery,
+} from '@/types/api-types';
+
+type FetchOptions = {
+  method: string;
+  headers?: Record<string, string>;
+  body?: string;
+};
+
+class TypeSafeApiClient {
+  constructor(private baseURL: string) {}
+
+  private async request<Path extends ApiPaths, Method extends ApiAvailableMethods<Path>>(
+    path: string,
+    method: Method,
+    options?: {
+      body?: ApiRequest<Path, Method>;
+      query?: ApiQuery<Path, Method>;
+    }
+  ): Promise<ApiResponsesByStatus<Path, Method, '200'>> {
+    const url = new URL(path, this.baseURL);
+    
+    if (options?.query) {
+      Object.entries(options.query).forEach(([key, value]) => {
+        if (value !== undefined) {
+          url.searchParams.append(key, String(value));
+        }
+      });
+    }
+
+    const fetchOptions: FetchOptions = {
+      method: method as string,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    };
+
+    if (options?.body) {
+      fetchOptions.body = JSON.stringify(options.body);
+    }
+
+    const response = await fetch(url.toString(), fetchOptions);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async get<Path extends ApiPaths>(
+    path: Path,
+    options?: { query?: ApiQuery<Path, 'GET'> }
+  ) {
+    return this.request(path as string, 'GET', options);
+  }
+
+  async post<Path extends ApiPaths>(
+    path: Path,
+    body: ApiRequest<Path, 'POST'>
+  ) {
+    return this.request(path as string, 'POST', { body });
+  }
+
+  async put<Path extends ApiPaths>(
+    path: Path,
+    body: ApiRequest<Path, 'PUT'>
+  ) {
+    return this.request(path as string, 'PUT', { body });
+  }
+
+  async delete<Path extends ApiPaths>(path: Path) {
+    return this.request(path as string, 'DELETE');
+  }
+}
+
+export const apiClient = new TypeSafeApiClient(
+  import.meta.env.VITE_API_URL || 'http://localhost:3000'
+);
+```
+
+Usage:
+
+```typescript
+// Fully type-safe API calls
+const user = await apiClient.get('/api/users/:id'); // ✅ Type-safe
+const newUser = await apiClient.post('/api/users', { name: 'Alice', email: 'alice@example.com' }); // ✅ Type-safe
+const users = await apiClient.get('/api/users/search', { query: { search: 'alice' } }); // ✅ Type-safe
+
+// TypeScript errors for invalid paths or payloads
+await apiClient.get('/invalid/path'); // ❌ Type error
+await apiClient.post('/api/users', { invalid: 'field' }); // ❌ Type error
+```
+
+## Best Practices
+
+### 1. Centralize API Calls
+
+Create a single API client module rather than making fetch calls throughout your app:
+
+```typescript
+// ✅ Good: Centralized API client
+import { apiClient } from '@/api/client';
+const user = await apiClient.getUser(id);
+
+// ❌ Bad: Scattered fetch calls
+const res = await fetch(`/api/users/${id}`);
+```
+
+### 2. Handle Errors Consistently
+
+Create error handling utilities:
+
+```typescript
+export class ApiError extends Error {
+  constructor(
+    public status: number,
+    public statusText: string,
+    public body?: unknown
+  ) {
+    super(`API Error: ${status} ${statusText}`);
+  }
+}
+
+export async function handleApiResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new ApiError(response.status, response.statusText, body);
+  }
+  return response.json();
+}
+```
+
+### 3. Use Type Aliases
+
+Create meaningful type aliases for complex types:
+
+```typescript
+// ✅ Good: Clear type aliases
+type User = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+type UserList = ApiResponsesByStatus<'/api/users', 'GET', '200'>;
+type CreateUserPayload = ApiRequest<'/api/users', 'POST'>;
+
+// ❌ Bad: Inline types everywhere
+function getUser(): ApiResponsesByStatus<'/api/users/:id', 'GET', '200'> { }
+```
+
+### 4. Leverage Path Building
+
+Use `ApiPathBuilder` for dynamic paths:
+
+```typescript
+import type { ApiPathBuilder } from '@/types/api-types';
+
+const buildUserPath: ApiPathBuilder<'/api/users/:id', 'GET'> = ({ params }) => {
+  return `/api/users/${params.id}`;
+};
+
+const path = buildUserPath({ params: { id: '123' } });
+// Type: `/api/users/${string}`
+```
+
+## Monorepo Setup
+
+For monorepo projects, share types between packages:
+
+```
+packages/
+├── api/           # Backend
+├── web/           # Frontend
+└── shared/
+    └── types/     # Shared types
+        └── api-types.d.ts
+```
+
+Configure your frontend to import from the shared package:
+
+```json title="packages/web/tsconfig.json"
+{
+  "compilerOptions": {
+    "paths": {
+      "@shared/types": ["../shared/types"]
+    }
+  }
+}
+```
+
+```typescript title="packages/web/src/api/client.ts"
+import type { ApiResponsesByStatus } from '@shared/types/api-types';
+```
+
+## Next Steps
+
+- [Utility Types](/docs/utility-types) - Deep dive into generated utility types
+- [Best Practices](/docs/guides/best-practices) - Advanced patterns and tips
+- [Backend Integration](/docs/guides/backend-integration) - Set up your backend

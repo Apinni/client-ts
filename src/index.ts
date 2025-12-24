@@ -1,11 +1,30 @@
-export { default as ProxySwaggerPlugin } from '../plugins/proxy-swagger-plugin/proxy-swagger-plugin';
-export { default as SwaggerPlugin } from '../plugins/swagger-plugin/swagger-plugin';
-export * from './decorators';
 export {
-    type ApinniConfig,
-    type ApinniPlugin,
-    type IGenerationContext,
-    type OverridedContext,
-    runApinni,
-} from './main';
+    AllOfSchema,
+    AnyOfSchema,
+    AnySchema,
+    ArrayItemMeta,
+    ArraySchema,
+    BooleanSchema,
+    DomainTypesSchema,
+    EndpointData,
+    EnumSchema,
+    JsonSchemaType,
+    NamedInlineTypeEntry,
+    NamedModelTypeEntry,
+    NamedTsTypeEntry,
+    NeverSchema,
+    NullSchema,
+    NumberSchema,
+    ObjectSchema,
+    RefSchema,
+    SchemaBuilderEntry,
+    SchemaDefinitionProperties,
+    StringSchema,
+    UndefinedSchema,
+} from './core/pipeline/modules/generator-module/types';
+export * from './core/pipeline/types';
+export * from './decorators';
+export * from './main';
+// export * from './plugins';
 export * from './utils';
+export * from '@interfaces';
