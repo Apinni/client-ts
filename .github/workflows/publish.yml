@@ -5,6 +5,12 @@ on:
     branches:
       - main
       - master
+    # This prevents the workflow from triggering at all on pure doc changes
+    # saving you CI minutes.
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+      - '.github/workflows/docs.yml'
 
 concurrency:
   group: "release"
@@ -43,4 +49,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+        # Semantic release checks commits. If there are no relevant changes
+        # (e.g. only docs/chore), it exits gracefully without publishing.
         run: npx semantic-release
