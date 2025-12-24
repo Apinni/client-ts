@@ -39,9 +39,6 @@ export class TypesLookupModule {
     }
 
     public buildTypeIndexes() {
-        console.log({
-            buildingWithSourceFiles: this.project.getSourceFiles().length,
-        });
         for (const sourceFile of this.project.getSourceFiles()) {
             if (sourceFile.getFullText().includes('Auto-generated API types')) {
                 continue;
@@ -99,8 +96,6 @@ export class TypesLookupModule {
                 });
             }
         }
-
-        console.log({ typesAmount: this.typeIndexQualified.size });
     }
 
     private addToTypeIndex(
@@ -143,24 +138,11 @@ export class TypesLookupModule {
                 continue;
             }
 
-            // const start = performance.now();
-
-            // const typeText = data.node.getText(); // syntactic, fast
-            // const typeSymbol = Node.isClassDeclaration(data.node) getType();
-            // const typeName = typeSymbol?.getName(); // often enough
-
-            // console.log({ typeText, typeSymbol, typeName });
-
             typeNodes.push({
                 type: data.type,
                 node: data.node,
                 name: type.name,
             });
-
-            // console.log(
-            //     `${type.name} resolved .getType() in `,
-            //     performance.now() - start
-            // );
         }
 
         return typeNodes;

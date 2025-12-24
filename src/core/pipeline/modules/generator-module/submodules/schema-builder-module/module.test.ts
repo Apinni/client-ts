@@ -877,7 +877,6 @@ describe('SchemaBuilderModule', () => {
                 { name: 'Test', type: data!.type, node: data!.node },
             ]);
 
-            console.log(result);
             expect(result.schema.Test).toEqual({
                 type: 'ref',
                 name: 'Example',

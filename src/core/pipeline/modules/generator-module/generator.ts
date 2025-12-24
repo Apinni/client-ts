@@ -291,11 +291,13 @@ export class GeneratorModule {
             schema,
         };
 
-        await writeFile(
-            'api-schema.json',
-            JSON.stringify(apiSchema, null, 2),
-            'utf-8'
-        );
+        if (this.config.generateSchemaFiles !== false) {
+            await writeFile(
+                'api-schema.json',
+                JSON.stringify(apiSchema, null, 2),
+                'utf-8'
+            );
+        }
 
         for (const [domain, endpoints] of endpointsByDomain.entries()) {
             const domainEndpoints = mappedEndpoints.filter(ep =>
@@ -382,8 +384,6 @@ export class GeneratorModule {
                 schema: {},
                 refs: {},
             };
-
-            console.log({ referencedNames: Array.from(referencedNames) });
 
             for (const name of referencedNames) {
                 if (schema.schema[name]) {
@@ -478,12 +478,6 @@ export class GeneratorModule {
                 const setting = disabledDomains[domain];
                 return setting !== undefined ? setting : wildcardDisabled;
             });
-
-            console.log(
-                endpoint.disabledDomains,
-                resolvedDisabledDomains,
-                domains
-            );
 
             resolvedEndpoints.push({
                 path: endpoint.path,

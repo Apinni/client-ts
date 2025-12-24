@@ -5,6 +5,7 @@ export interface ApinniConfig {
     excludePattenrs?: string[];
     plugins: PluginTypes[];
     outputPath?: string;
+    generateSchemaFiles?: boolean;
 }
 
 export type ApinniRunMode = 'watch' | 'default';

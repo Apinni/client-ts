@@ -21,15 +21,15 @@ const config: Config = {
     themes: ['@docusaurus/theme-mermaid'],
 
     // Set the production url of your site here
-    url: 'https://your-docusaurus-site.example.com',
+    url: 'https://apinni.github.io',
     // Set the /<baseUrl>/ pathname under which your site is served
     // For GitHub pages deployment, it is often '/<projectName>/'
-    baseUrl: '/',
+    baseUrl: '/client-ts/',
 
     // GitHub pages deployment config.
     // If you aren't using GitHub pages, you don't need these.
-    organizationName: 'facebook', // Usually your GitHub org/user name.
-    projectName: 'docusaurus', // Usually your repo name.
+    organizationName: 'Apinni', // Usually your GitHub org/user name.
+    projectName: 'client-ts', // Usually your repo name.
 
     onBrokenLinks: 'throw',
     onBrokenMarkdownLinks: 'warn',
@@ -74,7 +74,7 @@ const config: Config = {
                     position: 'left',
                 },
                 {
-                    href: 'https://github.com/facebook/docusaurus',
+                    href: 'https://github.com/Apinni/client-ts',
                     label: 'GitHub',
                     position: 'right',
                 },

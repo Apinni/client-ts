@@ -418,7 +418,6 @@ export class SchemaBuilderModule {
         seenSymbols?: Set<Symbol>;
         trace?: string[];
     }): JsonSchema {
-        // console.log(type.getText(), name, node?.getKindName());
         const aliasSymbol = type.getAliasSymbol();
         const targetAliasSymbol = type.getTargetType()?.getAliasSymbol();
         const symbol = type.getSymbol();
@@ -571,7 +570,6 @@ export class SchemaBuilderModule {
         const items = tupleTypes
             // .filter((_, index) => index !== restIndex)
             .map((tuple, index) => {
-                console.log(tuple.getText(), tuple.compilerType.getBaseTypes());
                 return {
                     ...this.convert({
                         type: tuple,
@@ -622,18 +620,9 @@ export class SchemaBuilderModule {
             );
         }
 
-        console.log({
-            filteredBoolean,
-            isMappedBoolean,
-            type: type.getText(),
-            name: rest.name,
-            node: rest.node?.getText(),
-        });
-
         const allLiterals =
             filteredBoolean.length > 0 &&
             filteredBoolean.every(union => union.isLiteral());
-        console.log({ allLiterals });
         if (allLiterals) {
             return {
                 type: 'enum',
