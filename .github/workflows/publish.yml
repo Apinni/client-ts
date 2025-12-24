@@ -6,26 +6,29 @@ on:
       - main
       - master
 
+concurrency:
+  group: "release"
+  cancel-in-progress: false
+
 jobs:
   release:
     runs-on: ubuntu-latest
     permissions:
-      contents: write # Required for creating releases and tags
-      issues: write # Required for commenting on issues
-      pull-requests: write # Required for commenting on PRs
-      id-token: write # Required for npm provenance
+      contents: write
+      issues: write
+      pull-requests: write
+      id-token: write
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Required for semantic-release to analyze commits
+          fetch-depth: 0
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          registry-url: 'https://registry.npmjs.org'
+          node-version: "lts/*"
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
@@ -40,5 +43,4 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: yarn semantic-release
-
+        run: npx semantic-release
