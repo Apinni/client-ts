@@ -1,6 +1,7 @@
 export const CONTROLLER_DECORATORS = [
     'ApiPath',
 ] as const satisfies Array<string>;
+
 export const ENDPOINT_DECORATORS = [
     'ApiOperationGet',
     'ApiOperationPost',

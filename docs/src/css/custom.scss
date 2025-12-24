@@ -37,6 +37,11 @@
   --ifm-search-active-background-color: rgba(37 99 235, 0.1);
   --ifm-search-modal-background: rgb(255 255 255);
   --ifm-search-result-hover-bg: rgb(248 250 252);
+
+  .alert--info {
+    --ifm-alert-border-color: #bfdbfe;
+    --ifm-alert-background-color: #eff6ff;
+  }
 }
 
 /* Dark Theme (corresponding, with slate-based neutrals and adjusted accents for contrast) */
@@ -76,6 +81,12 @@ html[data-theme='dark'] {
     --ifm-search-active-background-color: rgba(96 165 250, 0.1);
     --ifm-search-modal-background: rgb(30 41 59);
     --ifm-search-result-hover-bg: rgb(30 41 59);
+
+    .alert--info {
+      --ifm-alert-border-color: #1e40af;
+      --ifm-alert-background-color: rgb(30 58 138 / 0.2);
+    }
+
 }
 /* Grid background for hero section */
 /* .bg-grid {

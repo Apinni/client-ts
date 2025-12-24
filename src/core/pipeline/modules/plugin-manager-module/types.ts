@@ -1,4 +1,4 @@
-import { Dependency, ApinniPlugin, OverridedContext } from '@interfaces';
+import { ApinniPlugin, Dependency, OverridedContext } from '@interfaces';
 
 export type Hooks = Exclude<
     keyof ApinniPlugin<OverridedContext, [Dependency], true>['hooks'],

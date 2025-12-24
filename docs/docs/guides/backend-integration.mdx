@@ -1,9 +1,512 @@
 ---
 id: backend-integration
 title: Backend Integration
-description: Guide to integrating Apinni with backend frameworks like Express, NestJS, or Fastify.
+description: Guide to integrating Apinni with backend frameworks like Express, NestJS, Fastify, and Hono.
 ---
 
-# Work in progress
+import Tabs from '@theme/Tabs';
+import TabItem from '@theme/TabItem';
+import Admonition from '@theme/Admonition';
 
-Currently this page has no info yet.
+# Backend Integration
+
+Apinni is framework-agnostic and works seamlessly with popular Node.js backend frameworks. This guide shows you how to integrate Apinni with Express, NestJS, Fastify, and Hono.
+
+<Admonition type="info">
+**Framework Agnostic**: Apinni decorators are purely for type generation and don't affect your runtime code. You can use them alongside your framework's existing decorators and routing.
+</Admonition>
+
+## Express
+
+Express is a minimal and flexible Node.js web application framework. Here's how to use Apinni with Express:
+
+### Basic Setup
+
+```typescript title="src/controllers/user.controller.ts"
+import { Router } from 'express';
+import { ApinniController, ApinniEndpoint } from 'apinni-ts';
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface CreateUserRequest {
+  name: string;
+  email: string;
+}
+
+@ApinniController({ path: '/api/users' })
+export class UserController {
+  router = Router();
+
+  constructor() {
+    this.initializeRoutes();
+  }
+
+  private initializeRoutes() {
+    this.router.get('/:id', this.getUserById);
+    this.router.post('/', this.createUser);
+    this.router.put('/:id', this.updateUser);
+    this.router.delete('/:id', this.deleteUser);
+  }
+
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  private async getUserById(req, res): Promise<User> {
+    const user: User = {
+      id: req.params.id,
+      name: 'Alice',
+      email: 'alice@example.com'
+    };
+    return res.json(user);
+  }
+
+  @ApinniEndpoint<{
+    request: { type: CreateUserRequest; name: 'CreateUserDto' };
+    responses: { 200: { type: User; name: 'UserDto' } };
+  }>({ path: '/', method: 'POST' })
+  private async createUser(req, res): Promise<User> {
+    const body: CreateUserRequest = req.body;
+    const user: User = {
+      id: '123',
+      name: body.name,
+      email: body.email
+    };
+    return res.json(user);
+  }
+
+  @ApinniEndpoint<{
+    request: { type: Partial<User>; name: 'UpdateUserDto' };
+    responses: { 200: { type: User } };
+  }>({ path: '/:id', method: 'PUT' })
+  private async updateUser(req, res): Promise<User> {
+    const user: User = {
+      id: req.params.id,
+      ...req.body
+    };
+    return res.json(user);
+  }
+
+  @ApinniEndpoint({ path: '/:id', method: 'DELETE' })
+  private async deleteUser(req, res): Promise<void> {
+    return res.status(204).send();
+  }
+}
+```
+
+### Registering Controllers
+
+```typescript title="src/app.ts"
+import express from 'express';
+import { UserController } from './controllers/user.controller';
+
+const app = express();
+
+app.use(express.json());
+
+// Register controllers
+const userController = new UserController();
+app.use('/api/users', userController.router);
+
+app.listen(3000, () => {
+  console.log('Server running on port 3000');
+});
+```
+
+<Admonition type="tip">
+**Pattern**: Keep your Express routing logic separate from Apinni decorators. The decorators are only for type generation, while Express handles the actual routing.
+</Admonition>
+
+## NestJS
+
+NestJS already uses decorators for routing. You can use Apinni decorators alongside NestJS decorators:
+
+### Basic Setup
+
+```typescript title="src/users/users.controller.ts"
+import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
+import { ApinniController, ApinniEndpoint } from 'apinni-ts';
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface CreateUserDto {
+  name: string;
+  email: string;
+}
+
+@Controller('users')
+@ApinniController({ path: '/api/users' })
+export class UsersController {
+  @Get(':id')
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  async getUserById(@Param('id') id: string): Promise<User> {
+    return {
+      id,
+      name: 'Alice',
+      email: 'alice@example.com'
+    };
+  }
+
+  @Post()
+  @ApinniEndpoint<{
+    request: { type: CreateUserDto };
+    responses: { 200: { type: User } };
+  }>({ path: '/', method: 'POST' })
+  async createUser(@Body() createUserDto: CreateUserDto): Promise<User> {
+    return {
+      id: '123',
+      ...createUserDto
+    };
+  }
+
+  @Put(':id')
+  @ApinniEndpoint<{
+    request: { type: Partial<User> };
+    responses: { 200: { type: User } };
+  }>({ path: '/:id', method: 'PUT' })
+  async updateUser(
+    @Param('id') id: string,
+    @Body() updateUserDto: Partial<User>
+  ): Promise<User> {
+    return {
+      id,
+      name: 'Updated',
+      email: 'updated@example.com',
+      ...updateUserDto
+    };
+  }
+
+  @Delete(':id')
+  @ApinniEndpoint({ path: '/:id', method: 'DELETE' })
+  async deleteUser(@Param('id') id: string): Promise<void> {
+    // Delete logic
+  }
+}
+```
+
+<Admonition type="info">
+**Dual Decorators**: You'll use both NestJS decorators (for runtime routing) and Apinni decorators (for type generation). This gives you the best of both worlds.
+</Admonition>
+
+### With NestJS DTOs
+
+You can leverage NestJS's class-validator DTOs with Apinni:
+
+```typescript title="src/users/dto/create-user.dto.ts"
+import { IsString, IsEmail } from 'class-validator';
+
+export class CreateUserDto {
+  @IsString()
+  name: string;
+
+  @IsEmail()
+  email: string;
+}
+```
+
+```typescript title="src/users/users.controller.ts"
+import { CreateUserDto } from './dto/create-user.dto';
+
+@Controller('users')
+@ApinniController({ path: '/api/users' })
+export class UsersController {
+  @Post()
+  @ApinniEndpoint<{
+    request: { type: CreateUserDto; name: 'CreateUserRequest' };
+  }>({ path: '/', method: 'POST' })
+  async createUser(@Body() dto: CreateUserDto): Promise<User> {
+    // NestJS validates the DTO at runtime
+    // Apinni generates types for the frontend
+    return { id: '123', ...dto };
+  }
+}
+```
+
+## Fastify
+
+Fastify is a fast and low-overhead web framework. Here's how to integrate with Apinni:
+
+### Basic Setup
+
+```typescript title="src/controllers/user.controller.ts"
+import { FastifyInstance } from 'fastify';
+import { ApinniController, ApinniEndpoint } from 'apinni-ts';
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface CreateUserRequest {
+  name: string;
+  email: string;
+}
+
+@ApinniController({ path: '/api/users' })
+export class UserController {
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  async getUserById(id: string): Promise<User> {
+    return {
+      id,
+      name: 'Alice',
+      email: 'alice@example.com'
+    };
+  }
+
+  @ApinniEndpoint<{
+    request: { type: CreateUserRequest };
+    responses: { 200: { type: User } };
+  }>({ path: '/', method: 'POST' })
+  async createUser(data: CreateUserRequest): Promise<User> {
+    return {
+      id: '123',
+      ...data
+    };
+  }
+
+  registerRoutes(fastify: FastifyInstance) {
+    fastify.get('/api/users/:id', async (request, reply) => {
+      const { id } = request.params as { id: string };
+      const user = await this.getUserById(id);
+      return reply.send(user);
+    });
+
+    fastify.post('/api/users', async (request, reply) => {
+      const body = request.body as CreateUserRequest;
+      const user = await this.createUser(body);
+      return reply.send(user);
+    });
+  }
+}
+```
+
+### Registering Routes
+
+```typescript title="src/app.ts"
+import Fastify from 'fastify';
+import { UserController } from './controllers/user.controller';
+
+const fastify = Fastify({ logger: true });
+
+// Register controllers
+const userController = new UserController();
+userController.registerRoutes(fastify);
+
+fastify.listen({ port: 3000 }, (err, address) => {
+  if (err) throw err;
+  console.log(`Server listening on ${address}`);
+});
+```
+
+## Hono
+
+Hono is a small, simple, and ultrafast web framework. Here's how to use it with Apinni:
+
+### Basic Setup
+
+```typescript title="src/controllers/user.controller.ts"
+import { Hono } from 'hono';
+import { ApinniController, ApinniEndpoint } from 'apinni-ts';
+
+interface User {
+  id: string;
+  name: string;
+  email: string;
+}
+
+interface CreateUserRequest {
+  name: string;
+  email: string;
+}
+
+@ApinniController({ path: '/api/users' })
+export class UserController {
+  app = new Hono();
+
+  constructor() {
+    this.initializeRoutes();
+  }
+
+  private initializeRoutes() {
+    this.app.get('/:id', (c) => this.getUserById(c));
+    this.app.post('/', (c) => this.createUser(c));
+  }
+
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  private async getUserById(c): Promise<Response> {
+    const id = c.req.param('id');
+    const user: User = {
+      id,
+      name: 'Alice',
+      email: 'alice@example.com'
+    };
+    return c.json(user);
+  }
+
+  @ApinniEndpoint<{
+    request: { type: CreateUserRequest };
+    responses: { 200: { type: User } };
+  }>({ path: '/', method: 'POST' })
+  private async createUser(c): Promise<Response> {
+    const body: CreateUserRequest = await c.req.json();
+    const user: User = {
+      id: '123',
+      ...body
+    };
+    return c.json(user);
+  }
+}
+```
+
+### Registering Controllers
+
+```typescript title="src/app.ts"
+import { Hono } from 'hono';
+import { UserController } from './controllers/user.controller';
+
+const app = new Hono();
+
+// Register controllers
+const userController = new UserController();
+app.route('/api/users', userController.app);
+
+export default app;
+```
+
+## Best Practices
+
+### 1. Separate Concerns
+
+Keep your routing logic separate from type definitions:
+
+```typescript
+// ✅ Good: Clear separation
+@ApinniController({ path: '/api/users' })
+export class UserController {
+  @Get(':id')  // Framework routing
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })  // Type generation
+  async getUserById() { }
+}
+```
+
+### 2. Use Explicit Types
+
+Always define interfaces for complex types:
+
+```typescript
+// ✅ Good: Explicit interface
+interface CreateUserRequest {
+  name: string;
+  email: string;
+  age?: number;
+}
+
+@ApinniEndpoint<{
+  request: { type: CreateUserRequest };
+}>({ path: '/', method: 'POST' })
+async createUser(data: CreateUserRequest) { }
+```
+
+### 3. Organize by Feature
+
+Structure your controllers by feature or domain:
+
+```
+src/
+├── users/
+│   ├── users.controller.ts
+│   ├── users.service.ts
+│   └── dto/
+│       ├── create-user.dto.ts
+│       └── update-user.dto.ts
+├── posts/
+│   ├── posts.controller.ts
+│   └── posts.service.ts
+└── app.ts
+```
+
+### 4. Use Domains for Large Projects
+
+For large projects, use `@ApinniDomain` to organize generated types:
+
+```typescript
+@ApinniDomain({ domains: ['admin'] })
+@ApinniController({ path: '/api/admin/users' })
+export class AdminUserController { }
+
+@ApinniDomain({ domains: ['public'] })
+@ApinniController({ path: '/api/users' })
+export class PublicUserController { }
+```
+
+This generates separate type files: `admin-types.d.ts` and `public-types.d.ts`.
+
+## Error Handling
+
+Handle errors consistently across your API:
+
+```typescript
+@ApinniEndpoint<{
+  responses: {
+    200: { type: User };
+    404: { type: { message: string } };
+    500: { type: { message: string; error: string } };
+  };
+}>({ path: '/:id', method: 'GET' })
+async getUserById(id: string) {
+  try {
+    const user = await this.userService.findById(id);
+    if (!user) {
+      return { status: 404, body: { message: 'User not found' } };
+    }
+    return { status: 200, body: user };
+  } catch (error) {
+    return {
+      status: 500,
+      body: { message: 'Internal server error', error: error.message }
+    };
+  }
+}
+```
+
+## Monorepo Setup
+
+For monorepo projects, share types between packages:
+
+```
+packages/
+├── backend/
+│   ├── src/
+│   │   └── controllers/
+│   ├── apinni.config.ts
+│   └── package.json
+├── frontend/
+│   ├── src/
+│   │   └── api/
+│   └── package.json
+└── shared/
+    └── types/  # Generated types go here
+        └── api-types.d.ts
+```
+
+Configure Apinni to output to the shared package:
+
+```typescript title="packages/backend/apinni.config.ts"
+export default {
+  outputPath: '../shared/types',
+  plugins: [],
+};
+```
+
+## Next Steps
+
+- [Frontend Integration](/docs/guides/frontend-integration) - Consume your types in the frontend
+- [Utility Types](/docs/utility-types) - Learn about generated utility types
+- [Best Practices](/docs/guides/best-practices) - Advanced patterns and tips
+- [Plugins](/docs/plugins/overview) - Extend Apinni with plugins

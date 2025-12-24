@@ -1,0 +1,502 @@
+---
+id: overview
+title: API Reference
+description: Complete API reference for Apinni decorators, types, and configuration.
+---
+
+import Admonition from '@theme/Admonition';
+
+# API Reference
+
+This page provides a complete reference for all Apinni APIs, including decorators, configuration options, utility types, and CLI commands.
+
+## Decorators
+
+### @ApinniController
+
+Marks a class as an API controller and defines the base path for all endpoints within it.
+
+```typescript
+@ApinniController(options: ControllerOptions)
+```
+
+**Options:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `path` | `string` | Yes | Base path for all endpoints (e.g., `/api/users`) |
+
+**Example:**
+
+```typescript
+@ApinniController({ path: '/api/users' })
+export class UserController { }
+```
+
+[Learn more →](/docs/decorators/apinni-controller)
+
+---
+
+### @ApinniEndpoint
+
+Defines an API endpoint within a controller.
+
+```typescript
+@ApinniEndpoint<EndpointShape>(options: EndpointOptions)
+```
+
+**Options:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `path` | `string` | Yes | Endpoint path relative to controller (e.g., `/:id`) |
+| `method` | `'GET' \| 'POST' \| 'PUT' \| 'PATCH' \| 'DELETE'` | Yes | HTTP method |
+| `query` | `{ model: string; name?: string } \| string[]` | No | Query parameter type or array of param names |
+| `request` | `{ model: string; name?: string }` | No | Request body type |
+| `responses` | `{ model: string; name?: string } \| { [status: number]: ... }` | No | Response types by status code |
+
+**Generic Type:**
+
+```typescript
+interface EndpointShape {
+  query?: { type: unknown; name?: string };
+  request?: { type: unknown; name?: string };
+  responses?: { [status: number]: { type: unknown; name?: string } };
+}
+```
+
+**Example:**
+
+```typescript
+@ApinniEndpoint<{
+  request: { type: CreateUserDto };
+  responses: { 200: { type: User } };
+}>({ path: '/', method: 'POST' })
+async createUser() { }
+```
+
+[Learn more →](/docs/decorators/apinni-endpoint)
+
+---
+
+### @ApinniDomain
+
+Groups endpoints into logical domains for organized type generation.
+
+```typescript
+@ApinniDomain(options: DomainOptions)
+```
+
+**Options:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `domains` | `string[]` | Yes | Array of domain names (e.g., `['admin', 'public']`) |
+
+**Example:**
+
+```typescript
+@ApinniDomain({ domains: ['admin'] })
+@ApinniController({ path: '/api/admin/users' })
+export class AdminUserController { }
+```
+
+[Learn more →](/docs/decorators/apinni-domain)
+
+---
+
+### @ApinniDisabled
+
+Excludes a class or method from type generation, globally or for specific domains.
+
+```typescript
+@ApinniDisabled(options: DisabledOptions)
+```
+
+**Options:**
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| `disabled` | `boolean` | No | Global exclusion (default: `true`) |
+| `domains` | `{ [domain: string]: boolean; '*'?: boolean }` | No | Domain-specific exclusion |
+| `reason` | `string` | No | Explanation for exclusion |
+
+**Example:**
+
+```typescript
+@ApinniDisabled({ disabled: true, reason: 'Deprecated' })
+@ApinniEndpoint({ path: '/old', method: 'GET' })
+async oldEndpoint() { }
+```
+
+[Learn more →](/docs/decorators/apinni-disabled)
+
+---
+
+## Configuration
+
+### ApinniConfig
+
+Configuration object for Apinni.
+
+```typescript
+interface ApinniConfig {
+  outputPath?: string;
+  includePatterns?: string[];
+  excludePatterns?: string[];
+  plugins: PluginTypes[];
+}
+```
+
+**Properties:**
+
+| Property | Type | Default | Description |
+|----------|------|---------|-------------|
+| `outputPath` | `string` | `'./types'` | Directory for generated type files |
+| `includePatterns` | `string[]` | `undefined` | Glob patterns for files to process |
+| `excludePatterns` | `string[]` | `undefined` | Glob patterns for files to exclude |
+| `plugins` | `PluginTypes[]` | `[]` | Array of plugins to extend functionality |
+
+**Example:**
+
+```typescript title="apinni.config.ts"
+import type { ApinniConfig } from 'apinni-ts';
+
+export default {
+  outputPath: './types',
+  includePatterns: ['src/**/*.controller.ts'],
+  excludePatterns: ['**/*.spec.ts'],
+  plugins: [],
+} satisfies ApinniConfig;
+```
+
+---
+
+## Utility Types
+
+### ApiPaths
+
+Union type of all API path strings.
+
+```typescript
+type ApiPaths = '/api/users' | '/api/users/:id' | '/api/posts' | ...
+```
+
+### ApiAvailableMethods\<Path>
+
+Available HTTP methods for a given path.
+
+```typescript
+type Methods = ApiAvailableMethods<'/api/users/:id'>;
+// Result: 'GET' | 'PUT' | 'DELETE'
+```
+
+### ApiRequest\<Path\, Method>
+
+Request body type for a specific endpoint.
+
+```typescript
+type CreateUserRequest = ApiRequest<'/api/users', 'POST'>;
+// Result: { name: string; email: string }
+```
+
+### ApiResponses\<Path\, Method>
+
+All response types for an endpoint, mapped by status code.
+
+```typescript
+type UserResponses = ApiResponses<'/api/users/:id', 'GET'>;
+// Result: { 200: User; 404: NotFoundError; 500: ServerError }
+```
+
+### ApiResponsesByStatus\<Path\, Method\, Status>
+
+Response type for a specific status code.
+
+```typescript
+type SuccessResponse = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+// Result: User
+```
+
+### ApiQuery\<Path\, Method>
+
+Query parameter type for an endpoint.
+
+```typescript
+type SearchQuery = ApiQuery<'/api/users/search', 'GET'>;
+// Result: { search?: string; page?: number; limit?: number }
+```
+
+### ApiPathBuilder\<Path\, Method>
+
+Function type for building type-safe URL paths.
+
+```typescript
+type BuildUserPath = ApiPathBuilder<'/api/users/:id', 'GET'>;
+// Result: (args: { params: { id: string } }) => `/api/users/${string}`
+```
+
+[Learn more →](/docs/utility-types)
+
+---
+
+## Proxy Types
+
+Proxy types are generic versions that accept an API schema as a type parameter.
+
+### ApiPathsProxy\<TApi>
+
+```typescript
+type Paths = ApiPathsProxy<MyApi>;
+```
+
+### ApiAvailableMethodsProxy\<TApi\, Path>
+
+```typescript
+type Methods = ApiAvailableMethodsProxy<MyApi, '/api/users'>;
+```
+
+### ApiRequestProxy\<TApi\, Path\, Method>
+
+```typescript
+type Request = ApiRequestProxy<MyApi, '/api/users', 'POST'>;
+```
+
+### ApiResponsesProxy\<TApi\, Path\, Method>
+
+```typescript
+type Responses = ApiResponsesProxy<MyApi, '/api/users/:id', 'GET'>;
+```
+
+### ApiResponsesByStatusProxy\<TApi\, Path\, Method\, Status>
+
+```typescript
+type Response = ApiResponsesByStatusProxy<MyApi, '/api/users/:id', 'GET', '200'>;
+```
+
+### ApiQueryProxy\<TApi\, Path\, Method>
+
+```typescript
+type Query = ApiQueryProxy<MyApi, '/api/users/search', 'GET'>;
+```
+
+### ApiPathBuilderProxy\<TApi\, Path\, Method>
+
+```typescript
+type Builder = ApiPathBuilderProxy<MyApi, '/api/users/:id', 'GET'>;
+```
+
+[Learn more →](/docs/proxy)
+
+---
+
+## CLI Commands
+
+### generate
+
+Generate type definitions once.
+
+```bash
+apinni generate [options]
+```
+
+**Options:**
+
+| Flag | Alias | Description |
+|------|-------|-------------|
+| `--use-existing-build` | `-u` | Use existing TypeScript build output |
+| `--help` | `-h` | Display help information |
+
+**Example:**
+
+```bash
+apinni generate --use-existing-build
+```
+
+---
+
+### watch
+
+Generate type definitions and watch for changes.
+
+```bash
+apinni watch
+```
+
+**Example:**
+
+```bash
+apinni watch
+```
+
+[Learn more →](/docs/cli)
+
+---
+
+## Plugin API
+
+### ApinniPlugin
+
+Interface for creating Apinni plugins.
+
+```typescript
+interface ApinniPlugin<
+  OverridedContext = {},
+  Dependencies = [],
+  IsShareable = false,
+  SharedContext = never
+> {
+  name: string;
+  config?: {
+    shareable?: IsShareable;
+  };
+  hooks: {
+    onInitialize: (registry: ShareableRegistry, mode: ApinniRunMode) => void | Promise<void>;
+    onAfterDecoratorsProcessed?: () => void;
+    onRegisterMetadata?: (context: ShareableContext) => void;
+    onGenerateTypes?: (schema: ApiSchema, metadata?: Metadata) => Promise<void>;
+    onProvideSharedContext?: () => SharedContext;  // If shareable
+    onConsumeDependencyContexts?: (contexts: any[]) => void;  // If has dependencies
+  };
+  dependencies?: Dependency[];
+}
+```
+
+**Lifecycle Hooks:**
+
+1. `onInitialize` - Register custom decorators
+2. `onAfterDecoratorsProcessed` - Process after decorators are loaded
+3. `onProvideSharedContext` - Share context with dependent plugins (shareable only)
+4. `onConsumeDependencyContexts` - Consume contexts from dependencies
+5. `onRegisterMetadata` - Register metadata in generation context
+6. `onGenerateTypes` - Generate final types
+
+**Example:**
+
+```typescript
+import { buildPlugin } from 'apinni-ts';
+
+const MyPlugin = buildPlugin({
+  name: 'my-plugin',
+  hooks: {
+    onInitialize: (registry) => {
+      registry.register({
+        name: 'CustomDecorator',
+        variant: 'class',
+        type: 'compile-time',
+        handler: (event, params) => {
+          // Handle decorator
+        },
+      });
+    },
+  },
+});
+```
+
+[Learn more →](/docs/plugins/creating-plugins)
+
+---
+
+### buildPlugin
+
+Helper function to create a plugin with type safety.
+
+```typescript
+function buildPlugin<
+  Dependencies extends Dependency[] = [],
+  IsShareable extends boolean = false,
+  SharedContext = never
+>(plugin: ApinniPlugin<...>): ApinniPlugin<...>
+```
+
+**Example:**
+
+```typescript
+const plugin = buildPlugin({
+  name: 'my-plugin',
+  config: { shareable: true },
+  hooks: { /* ... */ },
+});
+```
+
+---
+
+## Types
+
+### IApi
+
+Base interface for API schemas.
+
+```typescript
+interface IApi {
+  [path: string]: {
+    [method: string]: {
+      query?: unknown;
+      request?: unknown;
+      responses?: {
+        [status: number]: unknown;
+      };
+    };
+  };
+}
+```
+
+### ApiMethod
+
+Union type of HTTP methods.
+
+```typescript
+type ApiMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+```
+
+### PipelineOptions
+
+Options for running Apinni programmatically.
+
+```typescript
+interface PipelineOptions {
+  watch?: boolean;
+  useExistingBuild?: boolean;
+}
+```
+
+---
+
+## Programmatic API
+
+### runApinni
+
+Run Apinni programmatically.
+
+```typescript
+async function runApinni(
+  config: ApinniConfig,
+  options: PipelineOptions
+): Promise<void>
+```
+
+**Example:**
+
+```typescript
+import { runApinni } from 'apinni-ts';
+
+await runApinni(
+  {
+    outputPath: './types',
+    plugins: [],
+  },
+  {
+    watch: false,
+    useExistingBuild: false,
+  }
+);
+```
+
+---
+
+## Next Steps
+
+- [Getting Started](/docs/getting-started-v2) - Set up Apinni in your project
+- [Decorators](/docs/decorators/apinni-controller) - Learn about core decorators
+- [Guides](/docs/guides/backend-integration) - Integration guides
+- [Plugins](/docs/plugins/overview) - Extend Apinni with plugins

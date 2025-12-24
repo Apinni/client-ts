@@ -30,7 +30,7 @@ describe('SchemaBuilderModule', () => {
             const result = getSchema(builder, [
                 { name: 'Test', type: data!.type, node: data!.node },
             ]);
-            expect(result.schema.Test).toEqual({});
+            expect(result.schema.Test).toEqual({ type: 'any' });
             expect(result.refs).toEqual({});
         });
 
@@ -45,7 +45,7 @@ describe('SchemaBuilderModule', () => {
             const result = getSchema(builder, [
                 { name: 'Test', type: data!.type, node: data!.node },
             ]);
-            expect(result.schema.Test).toEqual({});
+            expect(result.schema.Test).toEqual({ type: 'any' });
             expect(result.refs).toEqual({});
         });
 
@@ -60,7 +60,7 @@ describe('SchemaBuilderModule', () => {
             const result = getSchema(builder, [
                 { name: 'Test', type: data!.type, node: data!.node },
             ]);
-            expect(result.schema.Test).toEqual({ not: {} });
+            expect(result.schema.Test).toEqual({ type: 'never' });
             expect(result.refs).toEqual({});
         });
 
@@ -215,6 +215,9 @@ describe('SchemaBuilderModule', () => {
             const sourceFile = project.createSourceFile(
                 'test.ts',
                 `
+        /**
+         * EnumJSDoc
+         */
         enum TestEnum { A = 'a', B = 'b' }
         type Example = TestEnum;
       `
@@ -229,6 +232,7 @@ describe('SchemaBuilderModule', () => {
                 name: 'TestEnum',
             });
             expect(result.refs.TestEnum).toEqual({
+                global: 'EnumJSDoc',
                 type: 'enum',
                 values: ['a', 'b'],
             });
@@ -301,17 +305,18 @@ describe('SchemaBuilderModule', () => {
             });
             expect(result.refs.Example).toEqual({
                 type: 'array',
-                items: [{ type: 'string' }, { type: 'number' }],
+                items: [
+                    { type: 'string', optional: false, rest: false },
+                    { type: 'number', optional: false, rest: false },
+                ],
             });
         });
-    });
 
-    describe('Union Types', () => {
-        it('handles simple union type', () => {
+        it('handles tuple rest type', () => {
             const project = createProject();
             const sourceFile = project.createSourceFile(
                 'test.ts',
-                'type Example = string | number;'
+                'type Example = [number, ...number[]];'
             );
             const data = getTypeAndNode(sourceFile, 'Example');
             const builder = new SchemaBuilderModule(project);
@@ -323,6 +328,73 @@ describe('SchemaBuilderModule', () => {
                 name: 'Example',
             });
             expect(result.refs.Example).toEqual({
+                type: 'array',
+                items: [
+                    { type: 'number', optional: false, rest: false },
+                    { type: 'number', optional: false, rest: true },
+                ],
+            });
+        });
+
+        it('handles tuple rest type', () => {
+            const project = createProject();
+            const sourceFile = project.createSourceFile(
+                'test.ts',
+                'type Example = [width: number, ...dimensions: number[], number];'
+            );
+            const data = getTypeAndNode(sourceFile, 'Example');
+            const builder = new SchemaBuilderModule(project);
+            const result = getSchema(builder, [
+                { name: 'Test', type: data!.type, node: data!.node },
+            ]);
+            expect(result.schema.Test).toEqual({
+                type: 'ref',
+                name: 'Example',
+            });
+            expect(result.refs.Example).toEqual({
+                type: 'array',
+                items: [
+                    {
+                        type: 'number',
+                        optional: false,
+                        rest: false,
+                        name: 'width',
+                    },
+                    {
+                        type: 'number',
+                        optional: false,
+                        rest: true,
+                        name: 'dimensions',
+                    },
+                    { type: 'number', optional: false, rest: false },
+                ],
+            });
+        });
+    });
+
+    describe('Union Types', () => {
+        it('handles simple union type', () => {
+            const project = createProject();
+            const sourceFile = project.createSourceFile(
+                'test.ts',
+                `
+                /**
+                 * Example JSDocs
+                 */
+                type Example = string | number;`
+            );
+            const data = getTypeAndNode(sourceFile, 'Example');
+            const builder = new SchemaBuilderModule(project);
+            const result = getSchema(builder, [
+                { name: 'Test', type: data!.type, node: data!.node },
+            ]);
+            expect(result.schema.Test).toEqual({
+                type: 'ref',
+                name: 'Example',
+            });
+            expect(result.refs.Example).toEqual({
+                global: 'Example JSDocs',
+                type: 'complex',
                 anyOf: [{ type: 'string' }, { type: 'number' }],
             });
         });
@@ -352,7 +424,11 @@ describe('SchemaBuilderModule', () => {
             const project = createProject();
             const sourceFile = project.createSourceFile(
                 'test.ts',
-                'type Example = true | false;'
+                `
+                /**
+                 * Example JSDocs
+                 */
+                type Example = true | false;`
             );
             const data = getTypeAndNode(sourceFile, 'Example');
             const builder = new SchemaBuilderModule(project);
@@ -363,14 +439,21 @@ describe('SchemaBuilderModule', () => {
                 type: 'ref',
                 name: 'Example',
             });
-            expect(result.refs.Example).toEqual({ type: 'boolean' });
+            expect(result.refs.Example).toEqual({
+                global: 'Example JSDocs',
+                type: 'boolean',
+            });
         });
 
         it('handles single union type as the type itself', () => {
             const project = createProject();
             const sourceFile = project.createSourceFile(
                 'test.ts',
-                'type Example = string | undefined;'
+                `
+                /**
+                 * Example JSDocs
+                 */
+                type Example = string | undefined;`
             );
             const data = getTypeAndNode(sourceFile, 'Example');
             const builder = new SchemaBuilderModule(project);
@@ -381,7 +464,10 @@ describe('SchemaBuilderModule', () => {
                 type: 'ref',
                 name: 'Example',
             });
-            expect(result.refs.Example).toEqual({ type: 'string' });
+            expect(result.refs.Example).toEqual({
+                global: 'Example JSDocs',
+                type: 'string',
+            });
         });
     });
 
@@ -391,8 +477,32 @@ describe('SchemaBuilderModule', () => {
             const sourceFile = project.createSourceFile(
                 'test.ts',
                 `
-        type A = { a: string };
+        /**
+         * Type level JSDoc
+         */
+        type A = { 
+            /**
+             * First JSDoc
+             * 
+             * @description Some jsdoc desc **for** <b>property</b> why not
+             * @example "1.0.5"
+             */
+            /**
+             * Second JSDoc
+             */
+            a: string;
+            /**
+             * Property level JSDoc
+             */
+            b: B;
+        };
+        /**
+         * Type level JSDoc
+         */
         type B = { b: number };
+        /**
+         * Type level Example JSDoc
+         */
         type Example = A & B;
       `
             );
@@ -407,6 +517,8 @@ describe('SchemaBuilderModule', () => {
             });
             expect(result.refs).toEqual({
                 Example: {
+                    global: 'Type level Example JSDoc',
+                    type: 'complex',
                     allOf: [
                         {
                             type: 'ref',
@@ -419,11 +531,26 @@ describe('SchemaBuilderModule', () => {
                     ],
                 },
                 A: {
+                    global: 'Type level JSDoc',
                     type: 'object',
-                    properties: { a: { type: 'string' } },
-                    required: ['a'],
+                    properties: {
+                        a: {
+                            description:
+                                'Some jsdoc desc **for** <b>property</b> why not',
+                            example: '"1.0.5"',
+                            global: 'First JSDoc\nSecond JSDoc',
+                            type: 'string',
+                        },
+                        b: {
+                            global: 'Property level JSDoc',
+                            type: 'ref',
+                            name: 'B',
+                        },
+                    },
+                    required: ['a', 'b'],
                 },
                 B: {
+                    global: 'Type level JSDoc',
                     type: 'object',
                     properties: { b: { type: 'number' } },
                     required: ['b'],
@@ -437,7 +564,7 @@ describe('SchemaBuilderModule', () => {
             const project = createProject();
             const sourceFile = project.createSourceFile(
                 'test.ts',
-                'type Example = { a: string; b: number };'
+                'type Example = { a: string; b?: undefined };'
             );
             const data = getTypeAndNode(sourceFile, 'Example');
             const builder = new SchemaBuilderModule(project);
@@ -450,8 +577,11 @@ describe('SchemaBuilderModule', () => {
             });
             expect(result.refs.Example).toEqual({
                 type: 'object',
-                properties: { a: { type: 'string' }, b: { type: 'number' } },
-                required: ['a', 'b'],
+                properties: {
+                    a: { type: 'string' },
+                    b: { type: 'undefined' },
+                },
+                required: ['a'],
             });
         });
 
@@ -496,6 +626,38 @@ describe('SchemaBuilderModule', () => {
                 type: 'object',
                 properties: {},
                 indexedProperties: { type: 'number' },
+            });
+        });
+
+        it('handles object with array properties', () => {
+            const project = createProject();
+            const sourceFile = project.createSourceFile(
+                'test.ts',
+                'type Example = { a: number; values?: string[] };'
+            );
+            const data = getTypeAndNode(sourceFile, 'Example');
+            const builder = new SchemaBuilderModule(project);
+            const result = getSchema(builder, [
+                { name: 'Test', type: data!.type, node: data!.node },
+            ]);
+            expect(result.schema.Test).toEqual({
+                type: 'ref',
+                name: 'Example',
+            });
+            expect(result.refs.Example).toEqual({
+                type: 'object',
+                properties: {
+                    a: {
+                        type: 'number',
+                    },
+                    values: {
+                        type: 'array',
+                        items: {
+                            type: 'string',
+                        },
+                    },
+                },
+                required: ['a'],
             });
         });
 
@@ -669,11 +831,108 @@ describe('SchemaBuilderModule', () => {
             });
         });
 
+        it('handles multiple interface with jsdocs', () => {
+            const project = createProject();
+            const sourceFile = project.createSourceFile(
+                'test.ts',
+                `
+                /**
+                 * AProp jsDoc
+                 */
+                interface AProp {
+                    /**
+                     * AProp: a jsDoc
+                     */
+                    a: string;
+                };
+
+                /**
+                 * BProp jsDoc
+                 */
+                interface BProp { 
+                    /**
+                     * BProp: b jsDoc
+                     */
+                    b: string; 
+                };
+
+                /**
+                 * Example jsDoc
+                 */
+                interface Example {
+                    /**
+                     * Example: a jsDoc
+                     */
+                    a: AProp;
+                    /**
+                     * Example: b jsDoc
+                     */
+                    b: BProp;
+                };
+                `
+            );
+            const data = getTypeAndNode(sourceFile, 'Example');
+            const builder = new SchemaBuilderModule(project);
+            const result = getSchema(builder, [
+                { name: 'Test', type: data!.type, node: data!.node },
+            ]);
+
+            expect(result.schema.Test).toEqual({
+                type: 'ref',
+                name: 'Example',
+            });
+            expect(result.refs.Example).toEqual({
+                global: 'Example jsDoc',
+                type: 'object',
+                properties: {
+                    a: {
+                        global: 'Example: a jsDoc',
+                        name: 'AProp',
+                        type: 'ref',
+                    },
+                    b: {
+                        global: 'Example: b jsDoc',
+                        name: 'BProp',
+                        type: 'ref',
+                    },
+                },
+                required: ['a', 'b'],
+            });
+            expect(result.refs.AProp).toEqual({
+                global: 'AProp jsDoc',
+                type: 'object',
+                properties: {
+                    a: {
+                        global: 'AProp: a jsDoc',
+                        type: 'string',
+                    },
+                },
+                required: ['a'],
+            });
+            expect(result.refs.BProp).toEqual({
+                global: 'BProp jsDoc',
+                type: 'object',
+                properties: {
+                    b: {
+                        global: 'BProp: b jsDoc',
+                        type: 'string',
+                    },
+                },
+                required: ['b'],
+            });
+        });
+
         it('handles class', () => {
             const project = createProject();
             const sourceFile = project.createSourceFile(
                 'test.ts',
-                'class Example { a: string = "hello"; }'
+                `class Example { 
+                    /**
+                     * Some JSDoc
+                     * @description Hello from descriot
+                     */
+                    @CustomProperty() a: string = "hello"; 
+                }`
             );
             const data = getTypeAndNode(sourceFile, 'Example');
             const builder = new SchemaBuilderModule(project);
@@ -686,7 +945,13 @@ describe('SchemaBuilderModule', () => {
             });
             expect(result.refs.Example).toEqual({
                 type: 'object',
-                properties: { a: { type: 'string' } },
+                properties: {
+                    a: {
+                        type: 'string',
+                        description: 'Hello from descriot',
+                        global: 'Some JSDoc',
+                    },
+                },
                 required: ['a'],
             });
         });
@@ -749,7 +1014,9 @@ describe('SchemaBuilderModule', () => {
                 type: 'ref',
                 name: 'Invalid',
             });
-            expect(result.refs.Invalid).toEqual({});
+            expect(result.refs.Invalid).toEqual({
+                type: 'any',
+            });
         });
     });
 });

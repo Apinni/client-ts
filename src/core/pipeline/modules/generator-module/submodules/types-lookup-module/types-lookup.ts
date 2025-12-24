@@ -1,6 +1,11 @@
 import { join } from 'path';
-import { Node, Project, SourceFile, TypeFormatFlags } from 'ts-morph';
+import { Node, Project, SourceFile, Type, TypeFormatFlags } from 'ts-morph';
 
+import {
+    NamedInlineTypeEntry,
+    NamedModelTypeEntry,
+    NamedTsTypeEntry,
+} from '../../types';
 import {
     declarationHandlers,
     extractTypeReferences,
@@ -13,14 +18,14 @@ export class TypesLookupModule {
 
     private typeIndex = new Map<
         string,
-        Array<{ node: Node; sourceFile: SourceFile }>
+        Array<{ node: Node; type: Type; sourceFile: SourceFile }>
     >();
 
     private qualifiedNames = new Map<Node, string>();
 
     private typeIndexQualified = new Map<
         string,
-        { node: Node; sourceFile: SourceFile }
+        { node: Node; type: Type; sourceFile: SourceFile }
     >();
 
     constructor(project?: Project) {
@@ -40,25 +45,37 @@ export class TypesLookupModule {
             }
             sourceFile.getInterfaces().forEach(node => {
                 const name = node.getName();
-                this.addToTypeIndex(name, node, sourceFile);
+                this.addToTypeIndex(name, node, node.getType(), sourceFile);
             });
             sourceFile.getClasses().forEach(node => {
                 const name = node.getName();
-                if (name) this.addToTypeIndex(name, node, sourceFile);
+                if (name)
+                    this.addToTypeIndex(name, node, node.getType(), sourceFile);
             });
             sourceFile.getTypeAliases().forEach(node => {
                 const name = node.getName();
-                this.addToTypeIndex(name, node, sourceFile);
+                this.addToTypeIndex(
+                    name,
+                    node.getTypeNode()!,
+                    node.getType(),
+                    sourceFile
+                );
             });
             sourceFile.getEnums().forEach(node => {
                 const name = node.getName();
-                this.addToTypeIndex(name, node, sourceFile);
+                this.addToTypeIndex(name, node, node.getType(), sourceFile);
             });
             sourceFile.getVariableDeclarations().forEach(node => {
                 const name = node.getName();
                 if (node.getTypeNode()?.getText().startsWith('typeof ')) {
                     const resolved = resolveTypeofType(node.getTypeNode()!);
-                    if (resolved) this.addToTypeIndex(name, node, sourceFile);
+                    if (resolved)
+                        this.addToTypeIndex(
+                            name,
+                            node.getTypeNode()!,
+                            node.getType(),
+                            sourceFile
+                        );
                 }
             });
         }
@@ -81,9 +98,14 @@ export class TypesLookupModule {
         }
     }
 
-    private addToTypeIndex(name: string, node: Node, sourceFile: SourceFile) {
+    private addToTypeIndex(
+        name: string,
+        node: Node,
+        type: Type,
+        sourceFile: SourceFile
+    ) {
         const existing = this.typeIndex.get(name) || [];
-        this.typeIndex.set(name, [...existing, { node, sourceFile }]);
+        this.typeIndex.set(name, [...existing, { node, type, sourceFile }]);
     }
 
     lookup(types: Array<string>) {
@@ -92,6 +114,38 @@ export class TypesLookupModule {
         const definitions = this.searchTypeDefinitions(names);
 
         return definitions;
+    }
+
+    lookupNode(types: NamedModelTypeEntry[]) {
+        const typeNodes: Array<NamedTsTypeEntry | NamedInlineTypeEntry> = [];
+
+        for (const type of types) {
+            if ((this.typeIndex.get(type.model)?.length || 0) > 1) {
+                throw new Error(
+                    `Multiple definition declarations found for ${type.model} [${type.name}]`
+                );
+            }
+
+            const data = this.typeIndexQualified.get(type.model);
+            if (!data) {
+                // console.warn(
+                //     `Unable to find definition declaration for ${type.model} [${type.name}]`
+                // );
+                typeNodes.push({
+                    name: type.name,
+                    inline: 'any',
+                });
+                continue;
+            }
+
+            typeNodes.push({
+                type: data.type,
+                node: data.node,
+                name: type.name,
+            });
+        }
+
+        return typeNodes;
     }
 
     private getNodeName(node: Node): string | undefined {

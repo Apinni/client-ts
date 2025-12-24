@@ -70,6 +70,23 @@ export class DecoratorRegistry implements ShareableRegistry {
         }));
     }
 
+    private getOriginalDecoratorName(decorator: Decorator) {
+        const sourceFile = decorator.getSourceFile();
+
+        for (const imp of sourceFile.getImportDeclarations()) {
+            for (const named of imp.getNamedImports()) {
+                const exported = named.getNameNode().getText();
+                const alias = named.getAliasNode()?.getText() ?? exported;
+
+                if (decorator.getName() === alias) {
+                    return exported;
+                }
+            }
+        }
+
+        return decorator.getName();
+    }
+
     processEvent(
         event: HandlerEvent,
         {
@@ -82,7 +99,7 @@ export class DecoratorRegistry implements ShareableRegistry {
             propertyKey?: string | symbol;
         }
     ): boolean {
-        const name = decorator.getName();
+        const name = this.getOriginalDecoratorName(decorator);
         const variant = propertyKey ? 'method' : 'class';
         const key = `${name}:${variant}`;
 

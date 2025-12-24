@@ -46,6 +46,45 @@ describe('ScannerModule', () => {
         expect(result).toContain(file);
     });
 
+    it('detects classes with decorators and named imports', () => {
+        const file = project.createSourceFile(
+            '/file.ts',
+            `
+            import { ExternalDecorator as ExtraDecorator } from './somewhere';
+            import { ExtraDecorator as ExternalDecorator } from './somewhere';
+
+            @ExtraDecorator()
+            class TestClass {}
+        `
+        );
+
+        const result = scanner
+            .getSourceFilesWithDecorators([
+                { name: 'ExternalDecorator', type: 'run-time' },
+            ])
+            .map(({ sourceFile }) => sourceFile);
+        expect(result).toContain(file);
+    });
+
+    it('detects classes with decorators and namespaced imports', () => {
+        const file = project.createSourceFile(
+            '/file.ts',
+            `
+            import * as Decorators from './somewhere';
+
+            @Decorators.ExternalDecorator()
+            class TestClass {}
+        `
+        );
+
+        const result = scanner
+            .getSourceFilesWithDecorators([
+                { name: 'ExternalDecorator', type: 'run-time' },
+            ])
+            .map(({ sourceFile }) => sourceFile);
+        expect(result).toContain(file);
+    });
+
     it('detects method decorators (internal)', () => {
         const file = project.createSourceFile(
             '/file.ts',

@@ -1,9 +1,1088 @@
 ---
 id: proxy
-title: Proxy
-description: Explore Apinni's utility types for type-safe API interactions in TypeScript projects.
+title: Proxy Types
+description: Learn how to use Apinni's proxy types for API remapping and building reusable utilities.
 ---
 
-# Work in progress
+import Admonition from '@theme/Admonition';
 
-Currently this page has no info yet.
+# Proxy Types
+
+Proxy types in Apinni serve two powerful purposes:
+
+1. **API Remapping** - Create custom API schemas for proxy layers (like Next.js API routes) by remapping backend endpoints
+2. **Generic Utilities** - Build reusable libraries and utilities that work with any API schema
+
+<Admonition type="info">
+**Common Use Case**: Use proxy types to create a frontend API layer that transforms or simplifies your backend API, perfect for Next.js API routes, BFF (Backend for Frontend) patterns, or microservice gateways.
+</Admonition>
+
+## Quick Reference
+
+| Use Case | Type to Use | Example |
+|----------|-------------|---------|
+| Remap backend API for frontend | `BuildApi<T>` | `type MyApi = BuildApi<{ ['/api/users']: BackendApi['/users'] }>` |
+| Extract types from custom schema | `ApiRequestProxy<TApi, Path, Method>` | `type Req = ApiRequestProxy<MyApi, '/api/users', 'POST'>` |
+| Build reusable API client | All proxy types | See [Generic Utilities](#generic-utility-use-cases) |
+| Transform endpoint structure | `BuildApi<T>` + utility types | See [API Remapping](#use-case-1-api-remapping-for-proxy-layers) |
+
+## Use Case 1: API Remapping for Proxy Layers
+
+One of the most powerful features of Apinni is the ability to remap your backend API into a custom schema for your frontend proxy layer. This is ideal for Next.js API routes, BFF (Backend for Frontend) patterns, or any proxy layer.
+
+### The Problem
+
+You have a backend API with complex paths, but you want to expose a simpler or different API structure to your frontend:
+
+```typescript
+// Backend API
+type BackendApi = {
+  '/api-hackathons/hackathons': {
+    GET: { /* ... */ };
+  };
+  '/api-hackathons/hackathons/:id': {
+    GET: { /* ... */ };
+    PATCH: {
+      request: { name: string; description: string };
+      query: never;
+      responses: { 200: Hackathon };
+    };
+  };
+  '/api-users/users/:userId/profile': {
+    GET: { /* ... */ };
+  };
+};
+```
+
+### The Solution: BuildApi
+
+Use `BuildApi` to create a custom API schema for your proxy layer:
+
+```typescript
+import type { BuildApi, ApiRequest, ApiResponsesByStatus } from './backend-types';
+
+// Define your frontend API by remapping backend endpoints
+type FrontendApi = BuildApi<{
+  // Simple remapping: same structure, different path
+  ['/api/hackathons']: BackendApi['/api-hackathons/hackathons'];
+  
+  // Path transformation: flatten nested paths
+  ['/api/profile']: BackendApi['/api-users/users/:userId/profile'];
+  
+  // Custom endpoint: merge path params into body
+  ['/api/update-hackathon']: {
+    PATCH: {
+      request: ApiRequest<'/api-hackathons/hackathons/:id', 'PATCH'> & {
+        id: string;  // Move path param to body
+        mode: 'draft' | 'published';  // Add new field
+      };
+      query: {
+        version: number;  // Add versioning
+      };
+      responses: {
+        200: ApiResponsesByStatus<'/api-hackathons/hackathons/:id', 'PATCH', '200'>;
+        400: { error: string; code: string };  // Add custom error
+      };
+    };
+  };
+}>;
+```
+
+### Next.js API Routes Example
+
+Here's how to use this pattern in Next.js:
+
+```typescript title="app/api/hackathons/route.ts"
+import type { ApiRequest, ApiResponsesByStatus } from '@/types/backend-types';
+import type { FrontendApi } from '@/types/frontend-api';
+
+// Type-safe handler using frontend schema
+export async function GET(request: Request) {
+  type Response = ApiResponsesByStatus<'/api/hackathons', 'GET', '200', FrontendApi>;
+  
+  // Call backend API
+  const backendRes = await fetch('https://backend.com/api-hackathons/hackathons');
+  const data = await backendRes.json();
+  
+  return Response.json(data as Response);
+}
+```
+
+```typescript title="app/api/update-hackathon/route.ts"
+import type { ApiRequest, ApiResponsesByStatus } from '@/types/frontend-api';
+
+export async function PATCH(request: Request) {
+  type RequestBody = ApiRequest<'/api/update-hackathon', 'PATCH'>;
+  type SuccessResponse = ApiResponsesByStatus<'/api/update-hackathon', 'PATCH', '200'>;
+  
+  const body: RequestBody = await request.json();
+  const { id, mode, ...hackathonData } = body;
+  
+  // Transform frontend request to backend format
+  const backendRes = await fetch(
+    `https://backend.com/api-hackathons/hackathons/${id}?version=${request.nextUrl.searchParams.get('version')}`,
+    {
+      method: 'PATCH',
+      body: JSON.stringify({ ...hackathonData, mode }),
+    }
+  );
+  
+  const data: SuccessResponse = await backendRes.json();
+  return Response.json(data);
+}
+```
+
+### Frontend Client
+
+Now your frontend uses the simplified API:
+
+```typescript title="components/HackathonEditor.tsx"
+import type { ApiRequest, ApiResponsesByStatus } from '@/types/frontend-api';
+
+async function updateHackathon() {
+  type Request = ApiRequest<'/api/update-hackathon', 'PATCH'>;
+  type Response = ApiResponsesByStatus<'/api/update-hackathon', 'PATCH', '200'>;
+  
+  const payload: Request = {
+    id: '123',  // No need to put in URL path
+    name: 'Updated Hackathon',
+    description: 'New description',
+    mode: 'published',
+  };
+  
+  const res = await fetch('/api/update-hackathon?version=2', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  });
+  
+  const data: Response = await res.json();
+  return data;
+}
+```
+
+### Common Remapping Patterns
+
+#### 1. Path Simplification
+
+```typescript
+type SimplifiedApi = BuildApi<{
+  // Backend: /api/v1/organizations/:orgId/projects/:projectId
+  // Frontend: /api/projects/:id
+  ['/api/projects/:id']: {
+    GET: {
+      request: never;
+      query: never;
+      responses: {
+        200: BackendApi['/api/v1/organizations/:orgId/projects/:projectId']['GET']['responses']['200'];
+      };
+    };
+  };
+}>;
+```
+
+#### 2. Combining Multiple Endpoints
+
+```typescript
+type CombinedApi = BuildApi<{
+  ['/api/dashboard']: {
+    GET: {
+      request: never;
+      query: never;
+      responses: {
+        200: {
+          user: BackendApi['/api/users/:id']['GET']['responses']['200'];
+          stats: BackendApi['/api/stats']['GET']['responses']['200'];
+          notifications: BackendApi['/api/notifications']['GET']['responses']['200'];
+        };
+      };
+    };
+  };
+}>;
+```
+
+#### 3. Request/Response Transformation
+
+```typescript
+type TransformedApi = BuildApi<{
+  ['/api/upload']: {
+    POST: {
+      request: {
+        file: File;  // Browser File API
+        metadata: { name: string; tags: string[] };
+      };
+      query: never;
+      responses: {
+        200: {
+          url: string;
+          uploadId: string;
+          // Transform backend response to include frontend-specific fields
+          previewUrl: string;
+        };
+      };
+    };
+  };
+}>;
+```
+
+#### 4. Adding Middleware Data
+
+```typescript
+type AuthenticatedApi = BuildApi<{
+  ['/api/users/me']: {
+    GET: {
+      request: never;
+      query: never;
+      responses: {
+        200: BackendApi['/api/users/:id']['GET']['responses']['200'] & {
+          // Add fields from middleware
+          permissions: string[];
+          sessionExpiry: number;
+        };
+      };
+    };
+  };
+}>;
+```
+
+### Benefits
+
+1. **Clean Frontend API** - Expose a simple API to your frontend regardless of backend complexity
+2. **Type Safety** - Full type checking across the proxy layer
+3. **Flexibility** - Transform, combine, or simplify backend endpoints
+4. **Versioning** - Maintain stable frontend API while backend evolves
+5. **BFF Pattern** - Perfect for Backend-for-Frontend architecture
+
+<Admonition type="tip">
+**Pro Tip**: Define your frontend API schema in a separate file (`frontend-api.d.ts`) and use it consistently across all Next.js API routes and frontend code.
+</Admonition>
+
+---
+
+## Use Case 2: Generic Utilities
+
+The second use case for proxy types is building reusable utilities that work with any API schema.
+
+## Standard vs Proxy Types
+
+### Standard Utility Types
+
+Standard utility types are bound to the generated `Api` type:
+
+```typescript
+import type { ApiPaths, ApiResponsesByStatus } from './api-types';
+
+// Tied to the specific Api type generated
+type Path = ApiPaths;  // '/api/users/:id' | '/api/posts'
+type UserResponse = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+```
+
+### Proxy Types
+
+Proxy types accept any API schema as a generic parameter:
+
+```typescript
+import type { ApiPathsProxy, ApiResponsesByStatusProxy, IApi } from './api-types';
+
+// Works with any API schema
+function buildClient<TApi extends IApi>(schema: TApi) {
+  type Paths = ApiPathsProxy<TApi>;
+  type Response = ApiResponsesByStatusProxy<TApi, '/api/users/:id', 'GET', '200'>;
+  
+  // Build client using these types
+}
+```
+
+## Available Proxy Types
+
+Apinni generates the following proxy types alongside standard utility types:
+
+### BuildApi\<T>
+
+The most important proxy type for API remapping. It validates and transforms your custom API schema.
+
+```typescript
+type BuildApi<T extends IApi> = T;
+```
+
+**Usage:**
+
+```typescript
+type MyProxyApi = BuildApi<{
+  ['/api/users']: {
+    GET: {
+      request: never;
+      query: { page?: number };
+      responses: { 200: User[] };
+    };
+  };
+}>;
+```
+
+### Utility Proxy Types
+
+| Standard Type | Proxy Type | Description |
+|--------------|------------|-------------|
+| `ApiPaths` | `ApiPathsProxy<TApi>` | Extract all path strings from an API schema |
+| `ApiAvailableMethods<Path>` | `ApiAvailableMethodsProxy<TApi, Path>` | Get available HTTP methods for a path |
+| `ApiRequest<Path, Method>` | `ApiRequestProxy<TApi, Path, Method>` | Extract request body type |
+| `ApiResponses<Path, Method>` | `ApiResponsesProxy<TApi, Path, Method>` | Extract all response types |
+| `ApiResponsesByStatus<Path, Method, Status>` | `ApiResponsesByStatusProxy<TApi, Path, Method, Status>` | Extract response by status code |
+| `ApiQuery<Path, Method>` | `ApiQueryProxy<TApi, Path, Method>` | Extract query parameters |
+| `ApiPathBuilder<Path, Method>` | `ApiPathBuilderProxy<TApi, Path, Method>` | Build type-safe paths |
+
+## Generic Utility Use Cases
+
+### 1. Building Reusable API Clients
+
+Create a generic API client that works with any Apinni-generated schema:
+
+```typescript
+import type {
+  IApi,
+  ApiPathsProxy,
+  ApiAvailableMethodsProxy,
+  ApiRequestProxy,
+  ApiResponsesByStatusProxy,
+} from 'apinni-ts';
+
+class GenericApiClient<TApi extends IApi> {
+  constructor(private baseURL: string) {}
+
+  async request<
+    Path extends ApiPathsProxy<TApi>,
+    Method extends ApiAvailableMethodsProxy<TApi, Path>
+  >(
+    path: Path,
+    method: Method,
+    options?: {
+      body?: ApiRequestProxy<TApi, Path, Method>;
+    }
+  ): Promise<ApiResponsesByStatusProxy<TApi, Path, Method, '200'>> {
+    const response = await fetch(`${this.baseURL}${path}`, {
+      method: method as string,
+      headers: { 'Content-Type': 'application/json' },
+      body: options?.body ? JSON.stringify(options.body) : undefined,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    return response.json();
+  }
+
+  async get<Path extends ApiPathsProxy<TApi>>(path: Path) {
+    return this.request(path, 'GET' as any);
+  }
+
+  async post<Path extends ApiPathsProxy<TApi>>(
+    path: Path,
+    body: ApiRequestProxy<TApi, Path, 'POST'>
+  ) {
+    return this.request(path, 'POST' as any, { body });
+  }
+}
+
+// Usage with any API schema
+import type { Api as UserApi } from './user-api-types';
+import type { Api as AdminApi } from './admin-api-types';
+
+const userClient = new GenericApiClient<UserApi>('https://api.example.com');
+const adminClient = new GenericApiClient<AdminApi>('https://admin.example.com');
+
+// Both clients are fully type-safe
+const user = await userClient.get('/api/users/:id');
+const admin = await adminClient.get('/api/admin/users');
+```
+
+### 2. Creating API Client Libraries
+
+Build a library that can be used with different API schemas:
+
+```typescript
+import type {
+  IApi,
+  ApiPathsProxy,
+  ApiResponsesByStatusProxy,
+} from 'apinni-ts';
+
+export class ApiClientBuilder<TApi extends IApi> {
+  private baseURL: string;
+  private interceptors: Array<(response: Response) => Response> = [];
+
+  constructor(baseURL: string) {
+    this.baseURL = baseURL;
+  }
+
+  addInterceptor(interceptor: (response: Response) => Response) {
+    this.interceptors.push(interceptor);
+    return this;
+  }
+
+  build() {
+    return {
+      get: async <Path extends ApiPathsProxy<TApi>>(path: Path) => {
+        let response = await fetch(`${this.baseURL}${path}`);
+        
+        for (const interceptor of this.interceptors) {
+          response = interceptor(response);
+        }
+
+        return response.json() as Promise<
+          ApiResponsesByStatusProxy<TApi, Path, 'GET', '200'>
+        >;
+      },
+      // ... other methods
+    };
+  }
+}
+
+// Library users can use it with their own API schema
+import type { Api } from './my-api-types';
+
+const client = new ApiClientBuilder<Api>('https://api.example.com')
+  .addInterceptor((res) => {
+    console.log('Response received:', res.status);
+    return res;
+  })
+  .build();
+
+const data = await client.get('/api/users/:id');  // Fully typed
+```
+
+### 3. Multi-Tenant Applications
+
+Handle multiple API schemas in a multi-tenant application:
+
+```typescript
+import type {
+  IApi,
+  ApiPathsProxy,
+  ApiResponsesByStatusProxy,
+} from 'apinni-ts';
+
+class TenantApiClient<TApi extends IApi> {
+  constructor(
+    private tenantId: string,
+    private baseURL: string
+  ) {}
+
+  async get<Path extends ApiPathsProxy<TApi>>(path: Path) {
+    const url = `${this.baseURL}/tenants/${this.tenantId}${path}`;
+    const response = await fetch(url);
+    return response.json() as Promise<
+      ApiResponsesByStatusProxy<TApi, Path, 'GET', '200'>
+    >;
+  }
+}
+
+// Different tenants might have different API schemas
+import type { Api as TenantAApi } from './tenant-a-types';
+import type { Api as TenantBApi } from './tenant-b-types';
+
+const tenantAClient = new TenantApiClient<TenantAApi>(
+  'tenant-a',
+  'https://api.example.com'
+);
+
+const tenantBClient = new TenantApiClient<TenantBApi>(
+  'tenant-b',
+  'https://api.example.com'
+);
+```
+
+### 4. Testing Utilities
+
+Create testing utilities that work with any API schema:
+
+```typescript
+import type {
+  IApi,
+  ApiPathsProxy,
+  ApiResponsesByStatusProxy,
+} from 'apinni-ts';
+
+export class ApiMockBuilder<TApi extends IApi> {
+  private mocks = new Map<string, any>();
+
+  mock<
+    Path extends ApiPathsProxy<TApi>,
+    Method extends string
+  >(
+    path: Path,
+    method: Method,
+    response: ApiResponsesByStatusProxy<TApi, Path, Method, '200'>
+  ) {
+    this.mocks.set(`${method}:${path}`, response);
+    return this;
+  }
+
+  async fetch(path: string, options?: RequestInit) {
+    const key = `${options?.method || 'GET'}:${path}`;
+    const mockResponse = this.mocks.get(key);
+
+    if (!mockResponse) {
+      throw new Error(`No mock found for ${key}`);
+    }
+
+    return {
+      ok: true,
+      json: async () => mockResponse,
+    } as Response;
+  }
+}
+
+// Usage in tests
+import type { Api } from './api-types';
+
+describe('API Client', () => {
+  it('should fetch user', async () => {
+    const mockBuilder = new ApiMockBuilder<Api>();
+    
+    mockBuilder.mock('/api/users/:id', 'GET', {
+      id: '123',
+      name: 'Alice',
+      email: 'alice@example.com',
+    });
+
+    // Use mock in tests
+    const response = await mockBuilder.fetch('/api/users/123');
+    const data = await response.json();
+    
+    expect(data.name).toBe('Alice');
+  });
+});
+```
+
+### 5. Plugin Development
+
+Build plugins that work with any Apinni-generated API:
+
+```typescript
+import type {
+  IApi,
+  ApiPathsProxy,
+  ApiResponsesByStatusProxy,
+} from 'apinni-ts';
+
+export class CachePlugin<TApi extends IApi> {
+  private cache = new Map<string, any>();
+
+  async getCached<Path extends ApiPathsProxy<TApi>>(
+    path: Path,
+    fetcher: () => Promise<ApiResponsesByStatusProxy<TApi, Path, 'GET', '200'>>
+  ) {
+    if (this.cache.has(path as string)) {
+      return this.cache.get(path as string);
+    }
+
+    const data = await fetcher();
+    this.cache.set(path as string, data);
+    return data;
+  }
+
+  clear() {
+    this.cache.clear();
+  }
+}
+
+// Works with any API schema
+import type { Api } from './api-types';
+
+const cache = new CachePlugin<Api>();
+
+const user = await cache.getCached('/api/users/:id', async () => {
+  const res = await fetch('/api/users/123');
+  return res.json();
+});
+```
+
+## Best Practices
+
+### 1. Use Proxy Types for Libraries
+
+When building reusable libraries, always use proxy types:
+
+```typescript
+// ✅ Good: Library uses proxy types
+export class ApiClient<TApi extends IApi> {
+  async get<Path extends ApiPathsProxy<TApi>>(path: Path) { }
+}
+
+// ❌ Bad: Library tied to specific API
+import type { ApiPaths } from './api-types';
+export class ApiClient {
+  async get(path: ApiPaths) { }
+}
+```
+
+### 2. Constrain Generic Parameters
+
+Use the `IApi` constraint for type safety:
+
+```typescript
+// ✅ Good: Constrained to IApi
+function buildClient<TApi extends IApi>(config: Config<TApi>) { }
+
+// ❌ Bad: No constraint
+function buildClient<TApi>(config: Config<TApi>) { }
+```
+
+### 3. Document Generic Parameters
+
+Add JSDoc comments to explain generic parameters:
+
+```typescript
+/**
+ * Create a type-safe API client for any Apinni-generated schema.
+ * 
+ * @template TApi - The API schema type (must extend IApi)
+ * @param baseURL - Base URL for API requests
+ * @returns A fully typed API client
+ * 
+ * @example
+ * ```typescript
+ * import type { Api } from './api-types';
+ * const client = createClient<Api>('https://api.example.com');
+ * ```
+ */
+export function createClient<TApi extends IApi>(baseURL: string) { }
+```
+
+### 4. Provide Type Helpers
+
+Export helper types for common patterns:
+
+```typescript
+import type { IApi, ApiPathsProxy, ApiResponsesByStatusProxy } from 'apinni-ts';
+
+export type GetEndpoint<
+  TApi extends IApi,
+  Path extends ApiPathsProxy<TApi>
+> = ApiResponsesByStatusProxy<TApi, Path, 'GET', '200'>;
+
+export type PostEndpoint<
+  TApi extends IApi,
+  Path extends ApiPathsProxy<TApi>
+> = {
+  request: ApiRequestProxy<TApi, Path, 'POST'>;
+  response: ApiResponsesByStatusProxy<TApi, Path, 'POST', '200'>;
+};
+
+// Usage
+import type { Api } from './api-types';
+
+type UserResponse = GetEndpoint<Api, '/api/users/:id'>;
+type CreateUser = PostEndpoint<Api, '/api/users'>;
+```
+
+## Limitations
+
+### 1. Path Literals Required
+
+Proxy types still require literal path strings:
+
+```typescript
+// ✅ Works: Literal path
+const user = await client.get('/api/users/:id');
+
+// ❌ Doesn't work: Dynamic path
+const path = '/api/users/:id';
+const user = await client.get(path);  // Type error
+```
+
+### 2. Method Literals Required
+
+HTTP methods must be literal strings:
+
+```typescript
+// ✅ Works: Literal method
+await client.request('/api/users', 'GET');
+
+// ❌ Doesn't work: Dynamic method
+const method = 'GET';
+await client.request('/api/users', method);  // Type error
+```
+
+## Examples
+
+### Complete Generic API Client
+
+Here's a complete example of a generic API client using proxy types:
+
+```typescript
+import type {
+  IApi,
+  ApiPathsProxy,
+  ApiAvailableMethodsProxy,
+  ApiRequestProxy,
+  ApiResponsesByStatusProxy,
+  ApiQueryProxy,
+} from 'apinni-ts';
+
+export class TypeSafeApiClient<TApi extends IApi> {
+  constructor(private baseURL: string) {}
+
+  private async request<
+    Path extends ApiPathsProxy<TApi>,
+    Method extends ApiAvailableMethodsProxy<TApi, Path>
+  >(
+    path: Path,
+    method: Method,
+    options?: {
+      body?: ApiRequestProxy<TApi, Path, Method>;
+      query?: ApiQueryProxy<TApi, Path, Method>;
+    }
+  ): Promise<ApiResponsesByStatusProxy<TApi, Path, Method, '200'>> {
+    const url = new URL(`${this.baseURL}${path}`);
+
+    if (options?.query) {
+      Object.entries(options.query).forEach(([key, value]) => {
+        if (value !== undefined) {
+          url.searchParams.append(key, String(value));
+        }
+      });
+    }
+
+    const response = await fetch(url.toString(), {
+      method: method as string,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: options?.body ? JSON.stringify(options.body) : undefined,
+    });
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    return response.json();
+  }
+
+  async get<Path extends ApiPathsProxy<TApi>>(
+    path: Path,
+    query?: ApiQueryProxy<TApi, Path, 'GET'>
+  ) {
+    return this.request(path, 'GET' as any, { query });
+  }
+
+  async post<Path extends ApiPathsProxy<TApi>>(
+    path: Path,
+    body: ApiRequestProxy<TApi, Path, 'POST'>
+  ) {
+    return this.request(path, 'POST' as any, { body });
+  }
+
+  async put<Path extends ApiPathsProxy<TApi>>(
+    path: Path,
+    body: ApiRequestProxy<TApi, Path, 'PUT'>
+  ) {
+    return this.request(path, 'PUT' as any, { body });
+  }
+
+  async delete<Path extends ApiPathsProxy<TApi>>(path: Path) {
+    return this.request(path, 'DELETE' as any);
+  }
+}
+
+// Usage
+import type { Api } from './api-types';
+
+const client = new TypeSafeApiClient<Api>('https://api.example.com');
+
+// All methods are fully typed
+const user = await client.get('/api/users/:id');
+const newUser = await client.post('/api/users', { name: 'Alice', email: 'alice@example.com' });
+const updated = await client.put('/api/users/:id', { name: 'Alice Updated' });
+await client.delete('/api/users/:id');
+```
+
+## Complete Real-World Example
+
+Here's a complete example combining both use cases - API remapping for a Next.js proxy layer:
+
+### Backend Types
+
+```typescript title="types/backend-api.d.ts"
+// Generated by Apinni from your backend
+export type Api = {
+  '/api-hackathons/hackathons': {
+    GET: {
+      request: never;
+      query: { page?: number; limit?: number };
+      responses: {
+        200: Hackathon[];
+      };
+    };
+    POST: {
+      request: { name: string; description: string };
+      query: never;
+      responses: {
+        200: Hackathon;
+        400: ValidationError;
+      };
+    };
+  };
+  '/api-hackathons/hackathons/:id': {
+    GET: {
+      request: never;
+      query: never;
+      responses: {
+        200: Hackathon;
+        404: NotFoundError;
+      };
+    };
+    PATCH: {
+      request: { name?: string; description?: string };
+      query: never;
+      responses: {
+        200: Hackathon;
+        404: NotFoundError;
+      };
+    };
+  };
+};
+
+export interface Hackathon {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+```
+
+### Frontend API Schema
+
+```typescript title="types/frontend-api.d.ts"
+import type { BuildApi, ApiRequest, ApiResponsesByStatus } from './backend-api';
+
+// Define your frontend API by remapping backend endpoints
+export type FrontendApi = BuildApi<{
+  // Simple path remapping
+  ['/api/hackathons']: Api['/api-hackathons/hackathons'];
+  
+  // Custom endpoint with enhanced request
+  ['/api/update-hackathon']: {
+    PATCH: {
+      request: ApiRequest<'/api-hackathons/hackathons/:id', 'PATCH'> & {
+        id: string;  // Move path param to body
+        mode: 'draft' | 'published';  // Add new field
+      };
+      query: {
+        version: number;  // Add versioning
+      };
+      responses: {
+        200: ApiResponsesByStatus<'/api-hackathons/hackathons/:id', 'PATCH', '200'>;
+        400: { error: string; code: string };
+        404: { error: string };
+      };
+    };
+  };
+  
+  // Simplified endpoint
+  ['/api/hackathon/:id']: {
+    GET: {
+      request: never;
+      query: never;
+      responses: {
+        200: ApiResponsesByStatus<'/api-hackathons/hackathons/:id', 'GET', '200'>;
+        404: { error: string };
+      };
+    };
+  };
+}>;
+```
+
+### Next.js API Routes
+
+```typescript title="app/api/hackathons/route.ts"
+import type { ApiQuery, ApiResponsesByStatus } from '@/types/frontend-api';
+
+export async function GET(request: Request) {
+  type Query = ApiQuery<'/api/hackathons', 'GET'>;
+  type Response = ApiResponsesByStatus<'/api/hackathons', 'GET', '200'>;
+  
+  const { searchParams } = new URL(request.url);
+  const query: Query = {
+    page: searchParams.get('page') ? Number(searchParams.get('page')) : undefined,
+    limit: searchParams.get('limit') ? Number(searchParams.get('limit')) : undefined,
+  };
+  
+  const backendRes = await fetch(
+    `${process.env.BACKEND_URL}/api-hackathons/hackathons?${new URLSearchParams(query as any)}`
+  );
+  
+  const data: Response = await backendRes.json();
+  return Response.json(data);
+}
+```
+
+```typescript title="app/api/update-hackathon/route.ts"
+import type { ApiRequest, ApiResponsesByStatus } from '@/types/frontend-api';
+
+export async function PATCH(request: Request) {
+  type RequestBody = ApiRequest<'/api/update-hackathon', 'PATCH'>;
+  type SuccessResponse = ApiResponsesByStatus<'/api/update-hackathon', 'PATCH', '200'>;
+  type ErrorResponse = ApiResponsesByStatus<'/api/update-hackathon', 'PATCH', '400'>;
+  
+  try {
+    const body: RequestBody = await request.json();
+    const { id, mode, ...hackathonData } = body;
+    
+    const { searchParams } = new URL(request.url);
+    const version = searchParams.get('version');
+    
+    if (!version) {
+      const error: ErrorResponse = {
+        error: 'Version is required',
+        code: 'MISSING_VERSION',
+      };
+      return Response.json(error, { status: 400 });
+    }
+    
+    // Transform to backend format
+    const backendRes = await fetch(
+      `${process.env.BACKEND_URL}/api-hackathons/hackathons/${id}`,
+      {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...hackathonData, mode }),
+      }
+    );
+    
+    if (!backendRes.ok) {
+      const error: ErrorResponse = {
+        error: 'Failed to update hackathon',
+        code: 'UPDATE_FAILED',
+      };
+      return Response.json(error, { status: 400 });
+    }
+    
+    const data: SuccessResponse = await backendRes.json();
+    return Response.json(data);
+  } catch (error) {
+    const errorResponse: ErrorResponse = {
+      error: 'Internal server error',
+      code: 'INTERNAL_ERROR',
+    };
+    return Response.json(errorResponse, { status: 500 });
+  }
+}
+```
+
+### Frontend Client
+
+```typescript title="lib/api-client.ts"
+import type {
+  FrontendApi,
+  ApiRequest,
+  ApiResponsesByStatus,
+  ApiQuery,
+} from '@/types/frontend-api';
+
+class ApiClient {
+  async updateHackathon(data: ApiRequest<'/api/update-hackathon', 'PATCH'>) {
+    type Response = ApiResponsesByStatus<'/api/update-hackathon', 'PATCH', '200'>;
+    
+    const res = await fetch('/api/update-hackathon?version=2', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    
+    if (!res.ok) {
+      throw new Error('Failed to update hackathon');
+    }
+    
+    return res.json() as Promise<Response>;
+  }
+  
+  async getHackathons(query?: ApiQuery<'/api/hackathons', 'GET'>) {
+    type Response = ApiResponsesByStatus<'/api/hackathons', 'GET', '200'>;
+    
+    const params = new URLSearchParams(query as any);
+    const res = await fetch(`/api/hackathons?${params}`);
+    
+    return res.json() as Promise<Response>;
+  }
+}
+
+export const apiClient = new ApiClient();
+```
+
+### React Component
+
+```tsx title="components/HackathonEditor.tsx"
+'use client';
+
+import { useState } from 'react';
+import { apiClient } from '@/lib/api-client';
+import type { ApiRequest } from '@/types/frontend-api';
+
+export function HackathonEditor({ hackathonId }: { hackathonId: string }) {
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [mode, setMode] = useState<'draft' | 'published'>('draft');
+  
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Fully typed request
+    const payload: ApiRequest<'/api/update-hackathon', 'PATCH'> = {
+      id: hackathonId,
+      name,
+      description,
+      mode,
+    };
+    
+    try {
+      const result = await apiClient.updateHackathon(payload);
+      console.log('Updated:', result);
+      // result is fully typed as Hackathon
+    } catch (error) {
+      console.error('Failed to update:', error);
+    }
+  };
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Hackathon name"
+      />
+      <textarea
+        value={description}
+        onChange={(e) => setDescription(e.target.value)}
+        placeholder="Description"
+      />
+      <select value={mode} onChange={(e) => setMode(e.target.value as any)}>
+        <option value="draft">Draft</option>
+        <option value="published">Published</option>
+      </select>
+      <button type="submit">Update</button>
+    </form>
+  );
+}
+```
+
+### Benefits of This Approach
+
+1. **Type Safety Across Layers** - From backend to Next.js API routes to frontend components
+2. **Flexible API Design** - Frontend API can differ from backend structure
+3. **Easy Refactoring** - Changes to backend types are caught at compile time
+4. **Clear Boundaries** - Explicit transformation layer in Next.js API routes
+5. **Enhanced Requests** - Add frontend-specific fields without changing backend
+6. **Better DX** - Autocomplete and type checking everywhere
+
+<Admonition type="success">
+**Pro Tip**: This pattern works great with Next.js Server Actions too! Just replace API routes with Server Actions and use the same type-safe approach.
+</Admonition>
+
+## Next Steps
+
+- [Utility Types](/docs/utility-types) - Learn about standard utility types
+- [Frontend Integration](/docs/guides/frontend-integration) - Use types in your frontend
+- [Best Practices](/docs/guides/best-practices) - Advanced patterns and tips
+- [Next.js Integration](/docs/guides/backend-integration#nextjs) - More Next.js patterns

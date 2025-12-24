@@ -136,9 +136,21 @@ export const ApinniEndpointHandler: DecoratorDefinition<'method'>['handler'] = (
         }
     }
 
-    context.registerMethodMetadata(target, propertyKey, {
-        ...args,
-    });
+    if (args) {
+        const { query, ...rest } = args;
+        context.registerMethodMetadata(target, propertyKey, {
+            ...rest,
+            ...(Array.isArray(query)
+                ? {
+                      query: {
+                          inline: `{ ${query.map(name => `${name}: string;`).join(' ')} }`,
+                      },
+                  }
+                : {
+                      query,
+                  }),
+        });
+    }
 
     const callExpr = decorator?.getCallExpression();
     const [typeArg] = callExpr?.getTypeArguments() || [];

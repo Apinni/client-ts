@@ -1,4 +1,6 @@
+import { ApinniRunMode } from './config';
 import { ClassMetadata, MethodMetadata } from './context';
+import { ApiSchema } from './schema';
 import { ShareableContext, ShareableRegistry } from './shared';
 
 export interface SharedContext<T = any> {
@@ -86,7 +88,10 @@ export interface BaseApinniPluginProps<
          *
          * @param registry - The decorator registry to register custom decorators
          */
-        onInitialize: (registry: ShareableRegistry) => void;
+        onInitialize: (
+            registry: ShareableRegistry,
+            mode: ApinniRunMode
+        ) => Promise<void> | void;
 
         /**
          * Called after all decorators have been processed.
@@ -115,22 +120,25 @@ export interface BaseApinniPluginProps<
          *
          * @param context - The generation context for type generation
          */
-        onGenerateTypes?: (metadata: {
-            classMetadata: Array<
-                ClassMetadata &
-                    Partial<
-                        OverridedGlobalContext['classMetadata'] &
-                            ExtractDependenciesOverridedContext<Dependencies>['classMetadata']
-                    >
-            >;
-            methodMetadata: Array<
-                MethodMetadata &
-                    Partial<
-                        OverridedGlobalContext['methodMetadata'] &
-                            ExtractDependenciesOverridedContext<Dependencies>['methodMetadata']
-                    >
-            >;
-        }) => Promise<void>;
+        onGenerateTypes?: (
+            schema: ApiSchema,
+            metadata?: {
+                classMetadata: Array<
+                    ClassMetadata &
+                        Partial<
+                            OverridedGlobalContext['classMetadata'] &
+                                ExtractDependenciesOverridedContext<Dependencies>['classMetadata']
+                        >
+                >;
+                methodMetadata: Array<
+                    MethodMetadata &
+                        Partial<
+                            OverridedGlobalContext['methodMetadata'] &
+                                ExtractDependenciesOverridedContext<Dependencies>['methodMetadata']
+                        >
+                >;
+            }
+        ) => Promise<void>;
     } & ([IsShareable] extends [true]
         ? {
               /**

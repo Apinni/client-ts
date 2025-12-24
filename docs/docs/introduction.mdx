@@ -1,30 +1,95 @@
 ---
 id: introduction
-title: Introduction to Apinni
-description: Discover Apinni, a TypeScript library for generating type-safe API definitions using decorators.
+title: Introduction
+description: Apinni is a TypeScript library for building type-safe APIs with decorators.
 ---
 
 import Admonition from '@theme/Admonition';
 
-Apinni is a TypeScript library for generating type-safe API definitions using decorators. It processes decorated controllers and endpoints, compiles TypeScript files, and generates type definitions for API paths, methods, requests, and responses. Key features include a CLI with watch mode, plugin support for extensibility (e.g., Swagger integration), and utility types for client-side consumption.
+# Introduction
 
-<Admonition type="info" title="Why Apinni?">
-Apinni streamlines API development by ensuring type safety across your backend and frontend, reducing runtime errors and improving developer productivity. It's perfect for modern TypeScript projects aiming for robust, maintainable APIs.
+Apinni is a TypeScript library for building **type-safe APIs** with decorators. It automatically generates TypeScript definitions from your backend code, ensuring type safety between your API and clients.
+
+## What is Apinni?
+
+Apinni bridges the gap between your backend and frontend by:
+
+1. **Scanning** your TypeScript controllers decorated with `@ApinniController` and `@ApinniEndpoint`
+2. **Analyzing** the types used in your endpoints
+3. **Generating** type-safe definitions that can be imported in your frontend
+
+This means your API contracts are always in sync, catching errors at compile-time rather than runtime.
+
+```typescript
+// Backend: Define your API
+@ApinniController({ path: '/api/users' })
+class UserController {
+  @ApinniEndpoint({ path: '/:id', method: 'GET' })
+  async getUserById(): Promise<User> {
+    return { id: '123', name: 'Alice', email: 'alice@example.com' };
+  }
+}
+
+// Frontend: Use generated types
+import type { ApiRequest, ApiResponsesByStatus } from './api-types';
+
+type UserResponse = ApiResponsesByStatus<'/api/users/:id', 'GET', '200'>;
+// Type: { id: string; name: string; email: string }
+```
+
+## Why Apinni?
+
+<div className="margin-bottom--lg">
+
+### **End-to-End Type Safety**
+
+No more manual type definitions or API documentation that goes out of sync. Changes in your backend are immediately reflected in your frontend types.
+
+### **Framework Agnostic**
+
+Works with any TypeScript backend framework (Express, NestJS, Fastify, Hono) and any frontend framework (React, Vue, Angular, Svelte).
+
+### **Developer Experience First**
+
+Built-in CLI with watch mode, comprehensive utility types, and plugin system for extensibility. Designed to feel natural in your existing workflow.
+
+### **Extensible Plugin System**
+
+Create custom plugins to extend functionality, integrate with tools like Swagger, or add your own decorators and metadata.
+
+</div>
+
+## How It Works
+
+Apinni operates in three phases:
+
+1. **Compilation Phase**: Compiles your TypeScript code and extracts decorator metadata
+2. **Analysis Phase**: Processes decorators and builds a schema of your API structure
+3. **Generation Phase**: Outputs type definition files with utility types for consumption
+
+<Admonition type="info">
+The generated types include not just your request/response shapes, but also utility types for path building, query parameters, and status-specific responses.
 </Admonition>
 
-## Core Benefits
+## Use Cases
 
-- **Type Safety**: Automatically generate types for requests and responses.
-- **Extensibility**: Plugins allow custom integrations like documentation generation.
-- **Developer-Friendly**: CLI with watch mode for seamless workflows.
-- **Flexibility**: Supports various backend frameworks and client-side usage.
+Apinni is perfect for:
 
-## Quick Overview
+- **Full-stack TypeScript applications** where you want type safety across the stack
+- **Monorepo projects** sharing types between backend and frontend packages
+- **API-first development** where contracts are defined before implementation
+- **Teams** wanting to reduce API-related bugs and improve collaboration
+- **Migration projects** gradually adding type safety to existing APIs
 
-Apinni works by scanning your TypeScript code for decorators like `@ApinniController` and `@ApinniEndpoint`, then generating a type definition file (e.g., `api-types.d.ts`) that you can import in your clients or servers.
+## Next Steps
 
-For a hands-on start, check out the [Getting Started](/docs/getting-started) guide.
+<div className="margin-top--lg">
 
-<Admonition type="tip" title="Community and Support">
-Join the [Apinni community](https://community.apinni.dev) for discussions, or explore the [GitHub repository](https://github.com/apinni/apinni) for source code and contributions.
-</Admonition>
+Ready to get started? Follow our step-by-step guide:
+
+- **[Installation](/docs/getting-started-v2)** - Install Apinni and configure your project
+- **[Decorators](/docs/decorators/apinni-controller)** - Learn about the core decorators
+- **[CLI](/docs/cli)** - Understand the CLI commands and options
+- **[Guides](/docs/guides/backend-integration)** - Integrate with your backend framework
+
+</div>
