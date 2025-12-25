@@ -747,6 +747,36 @@ describe('SchemaBuilderModule', () => {
             expect(result.refs).toEqual({});
         });
 
+        it('handles union type aliases as references', () => {
+            const project = createProject();
+            const sourceFile = project.createSourceFile(
+                'test.ts',
+                `
+        type UnionTypes = 'a' | 'b';
+        type Obj = { a?: UnionTypes };
+      `
+            );
+            const data = getTypeAndNode(sourceFile, 'Obj');
+            const builder = new SchemaBuilderModule(project);
+            const result = getSchema(builder, [
+                { name: 'Test', type: data!.type, node: data!.node },
+            ]);
+            expect(result.schema.Test).toEqual({
+                type: 'ref',
+                name: 'Obj',
+            });
+            expect(result.refs.Obj).toEqual({
+                type: 'object',
+                properties: {
+                    a: { type: 'ref', name: 'UnionTypes' },
+                },
+            });
+            expect(result.refs.UnionTypes).toEqual({
+                type: 'enum',
+                values: ['a', 'b'],
+            });
+        });
+
         it('handles name conflicts between schema and refs', () => {
             const project = createProject();
             const sourceFile = project.createSourceFile(

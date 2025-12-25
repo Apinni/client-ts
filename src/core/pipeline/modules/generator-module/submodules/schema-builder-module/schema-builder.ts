@@ -633,29 +633,6 @@ export class SchemaBuilderModule {
             filteredBoolean.every(union => union.isLiteral());
 
         if (allLiterals) {
-            const firstLiteral = filteredBoolean[0];
-            const firstSymbol = firstLiteral.getSymbol();
-            const parentEnum = firstSymbol?.getValueDeclaration()?.getParent();
-
-            // Typescript may parse enum as union of all it types
-            if (
-                parentEnum &&
-                Node.isEnumDeclaration(parentEnum) &&
-                filteredBoolean.every(union => {
-                    const symbol = union.getSymbol();
-                    const enumDecl = symbol?.getValueDeclaration()?.getParent();
-                    return enumDecl === parentEnum;
-                }) &&
-                filteredBoolean.length === parentEnum.getMembers().length
-            ) {
-                const enumType = parentEnum.getType();
-                return this.convert({
-                    type: enumType,
-                    ...rest,
-                    node: parentEnum,
-                }) as JsonSchema;
-            }
-
             return {
                 type: 'enum',
                 values: filteredBoolean
@@ -742,7 +719,21 @@ export class SchemaBuilderModule {
                         decl.isKind(SyntaxKind.PropertyAssignment) ||
                         decl.isKind(SyntaxKind.PropertyDeclaration))
                 ) {
-                    propType = decl.getType();
+                    // Try to get the type node first to preserve type aliases
+                    if (
+                        'getTypeNode' in decl &&
+                        typeof decl.getTypeNode === 'function'
+                    ) {
+                        const typeNode = decl.getTypeNode();
+                        if (typeNode) {
+                            propType = typeNode.getType();
+                        }
+                    }
+
+                    // Fall back to decl.getType() if no type node
+                    if (!propType) {
+                        propType = decl.getType();
+                    }
 
                     // uncomment in future when add support of class transformation
                     // console.log(
