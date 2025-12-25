@@ -1,3 +1,9 @@
+## [1.0.3](https://github.com/Apinni/client-ts/compare/v1.0.2...v1.0.3) (2025-12-25)
+
+### Bug Fixes
+
+* resolve type node from property ([d1efb6e](https://github.com/Apinni/client-ts/commit/d1efb6e766e41aa8a91695f9c6ee9e24777c9153))
+
 ## [1.0.2](https://github.com/Apinni/client-ts/compare/v1.0.1...v1.0.2) (2025-12-25)
 
 ### Bug Fixes
