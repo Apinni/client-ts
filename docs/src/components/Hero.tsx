@@ -49,7 +49,7 @@ const Hero = () => {
               <ArrowRight size={20} />
             </button>
           </Link>
-          <Link href='#' className={styles['link']}>
+          <Link href='https://github.com/Apinni/client-ts' className={styles['link']}>
             <button className={styles['view-on-github-button']} type="button">
               <Github size={20} />
               View on GitHub
