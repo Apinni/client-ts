@@ -4821,11 +4821,6 @@ supports-hyperlinks@^3.1.0:
     has-flag "^4.0.0"
     supports-color "^7.0.0"
 
-swagger-express-ts@^1.1.0:
-  version "1.1.0"
-  resolved "https://registry.yarnpkg.com/swagger-express-ts/-/swagger-express-ts-1.1.0.tgz#6de97fe3173e5a8ddd0653b00e5c5225c3c3bdb1"
-  integrity sha512-XgvEi4pp36rfXbHRT58uwsC50AxU8oVgFX3p3rEYlGZH8UV0srvZ8xFD7inNwZLKqbLtiRbjHLugGxggJnfHiw==
-
 synckit@^0.11.7:
   version "0.11.8"
   resolved "https://registry.yarnpkg.com/synckit/-/synckit-0.11.8.tgz#b2aaae998a4ef47ded60773ad06e7cb821f55457"
