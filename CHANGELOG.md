@@ -1,3 +1,9 @@
+## [1.0.2](https://github.com/Apinni/client-ts/compare/v1.0.1...v1.0.2) (2025-12-25)
+
+### Bug Fixes
+
+* parse enums in unions ([e59d183](https://github.com/Apinni/client-ts/commit/e59d183e64508dc3e936e3890954dfb3b180f708))
+
 ## [1.0.1](https://github.com/Apinni/client-ts/compare/v1.0.0...v1.0.1) (2025-12-25)
 
 ### Bug Fixes
