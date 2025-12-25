@@ -7,7 +7,7 @@ import { themes as prismThemes } from 'prism-react-renderer';
 const config: Config = {
     title: 'Apinni',
     tagline: 'Generate TypeScript API types with decorators',
-    favicon: 'img/favicon.ico',
+    favicon: 'img/logo-short.svg',
 
     // Future flags, see https://docusaurus.io/docs/api/docusaurus-config#future
     future: {
@@ -60,7 +60,7 @@ const config: Config = {
 
     themeConfig: {
         // Replace with your project's social card
-        image: 'img/docusaurus-social-card.jpg',
+        image: 'img/apinni-social-card.svg',
         navbar: {
             logo: {
                 alt: 'Apinni Logo',
@@ -94,17 +94,10 @@ const config: Config = {
                 {
                     title: 'Community',
                     items: [
+                        
                         {
-                            label: 'Stack Overflow',
-                            href: 'https://stackoverflow.com/questions/tagged/docusaurus',
-                        },
-                        {
-                            label: 'Discord',
-                            href: 'https://discordapp.com/invite/docusaurus',
-                        },
-                        {
-                            label: 'X',
-                            href: 'https://x.com/docusaurus',
+                            label: 'GitHub Discussions',
+                            href: 'https://github.com/Apinni/client-ts/discussions',
                         },
                     ],
                 },
