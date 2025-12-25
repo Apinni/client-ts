@@ -94,7 +94,7 @@ Below are examples demonstrating common use cases for `@ApinniEndpoint`. Use the
     Define a simple GET endpoint with an inferred `response` type.
 
     ```ts title="Basic Endpoint"
-    import { ApinniController, ApinniEndpoint } from 'apinni';
+    import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
     @ApinniController({ path: '/users' })
     class UserController {
@@ -124,7 +124,7 @@ Below are examples demonstrating common use cases for `@ApinniEndpoint`. Use the
     Specify a `request` and `responses` type using the `model` option.
 
     ```ts title="Request with Model"
-    import { ApinniController, ApinniEndpoint } from 'apinni';
+    import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
     @ApinniController({ path: '/users' })
     class UserController {
@@ -167,7 +167,7 @@ Below are examples demonstrating common use cases for `@ApinniEndpoint`. Use the
     Specify a `query` type using the `model` option.
 
     ```ts title="Generic Request"
-    import { ApinniController, ApinniEndpoint, EndpointShape } from 'apinni';
+    import { ApinniController, ApinniEndpoint, EndpointShape } from '@apinni/client-ts';
 
     @ApinniController({ path: '/users' })
     class UserController {
@@ -201,7 +201,7 @@ Below are examples demonstrating common use cases for `@ApinniEndpoint`. Use the
     Define simple `query` parameters as an array of strings.
 
     ```ts title="Generic Request"
-    import { ApinniController, ApinniEndpoint, EndpointShape } from 'apinni';
+    import { ApinniController, ApinniEndpoint, EndpointShape } from '@apinni/client-ts';
 
     @ApinniController({ path: '/users' })
     class UserController {
@@ -235,7 +235,7 @@ Below are examples demonstrating common use cases for `@ApinniEndpoint`. Use the
     Use generics to define a `query`, `request` or `responses` types explicitly.
 
     ```ts title="Generic Request"
-    import { ApinniController, ApinniEndpoint, EndpointShape } from 'apinni';
+    import { ApinniController, ApinniEndpoint, EndpointShape } from '@apinni/client-ts';
     import type { UserRequest, CreatePostQuery } from './types';
 
     @ApinniController({ path: '/users' })

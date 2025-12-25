@@ -21,7 +21,7 @@ NestJS natively supports decorators, making it a great fit.
 ### Step 1: Install Dependencies
 
 ```sh
-npm install apinni @nestjs/common @nestjs/core
+npm install @apinni/client-ts @nestjs/common @nestjs/core
 ```
 
 ### Step 2: Define Controllers
@@ -30,7 +30,7 @@ Use Apinni decorators alongside NestJS ones:
 
 ```ts title="src/controllers/user.controller.ts"
 import { Controller, Get, Param } from '@nestjs/common';
-import { ApinniController, ApinniEndpoint } from 'apinni';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 @ApinniController({ path: '/users' })
 @Controller('users')
@@ -58,13 +58,13 @@ For Express, map Apinni decorators to routes.
 ### Step 1: Setup
 
 ```sh
-npm install apinni express @types/express
+npm install @apinni/client-ts express @types/express
 ```
 
 ### Step 2: Define and Mount Controllers
 
 ```ts title="src/controllers/user.controller.ts"
-import { ApinniController, ApinniEndpoint } from 'apinni';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 @ApinniController({ path: '/users' })
 class UserController {

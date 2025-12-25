@@ -16,19 +16,19 @@ const ReadyToGetStarted = () => (
         <Tabs groupId="package-manager">
             <TabItem value="npm" label="npm" default>
                 <CodeBlock language='bash' title="Terminal">
-                {`$ npm install apinni --save-dev
+                {`$ npm install @apinni/client-ts --save-dev
 $ npm run apinni`}
                 </CodeBlock>
             </TabItem>
             <TabItem value="yarn" label="Yarn">
                 <CodeBlock language='bash' title="Terminal">
-                {`$ yarn add -D apinni
+                {`$ yarn add -D @apinni/client-ts
 $ yarn apinni`}
                 </CodeBlock>
             </TabItem>
             <TabItem value="pnpm" label="pnpm">
                                 <CodeBlock language='bash' title="Terminal">
-                {`$ pnpm add -D apinni
+                {`$ pnpm add -D @apinni/client-ts
 $ pnpm run apinni`}
                 </CodeBlock>
             </TabItem>
@@ -45,7 +45,7 @@ $ pnpm run apinni`}
             View documentation
           </button>
         </Link>
-        <Link href='#' className={styles['link']}>
+        <Link href='https://github.com/Apinni/client-ts' className={styles['link']}>
           <button className={styles['go-to-github-button']} type="button">
             <Github size={20} />
             Go to Github

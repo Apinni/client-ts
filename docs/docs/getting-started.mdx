@@ -53,17 +53,17 @@ Install `apinni` as a development dependency using your preferred package manage
 <Tabs groupId="package-manager">
   <TabItem value="npm" label="npm" default>
     ```sh
-    npm install apinni --save-dev
+    npm install @apinni/client-ts --save-dev
     ```
   </TabItem>
   <TabItem value="yarn" label="Yarn">
     ```sh
-    yarn add -D apinni
+    yarn add -D @apinni/client-ts
     ```
   </TabItem>
   <TabItem value="pnpm" label="pnpm">
     ```sh
-    pnpm add -D apinni
+    pnpm add -D @apinni/client-ts
     ```
   </TabItem>
 </Tabs>
@@ -93,7 +93,7 @@ Modify your `package.json` to include a `apinni` script:
 Create a basic controller using Apinni decorators to test the setup. For example:
 
 ```ts title="src/controllers/user.controller.ts"
-import { ApinniController, ApinniEndpoint } from 'apinni';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 @ApinniController({ path: '/api/users' })
 class UserController {
@@ -179,7 +179,7 @@ export type Api = {
     Create a `apinni.config.ts` file in your project root:
 
     ```ts
-    import type { ApinniConfig } from "apinni";
+    import type { ApinniConfig } from "@apinni/client-ts";
     
     export default {
         outputPath: "./types",
@@ -208,8 +208,8 @@ Experiment with a sample Apinni project in a live TypeScript environment: [CodeS
 |------------------------------------|--------------------------------------------------------------------------|
 | **No types generated**             | Ensure `tsconfig.json` has `experimentalDecorators` and `emitDecoratorMetadata` enabled. Check that controllers use `@ApinniController`. |
 | **Types generated in wrong directory** | Verify the `outputPath` in your config file.          |
-| **Decorator errors**               | Confirm `apinni` is installed and imported correctly (`import { ApinniController } from 'apinni'`). |
-| **Endpoints missing or incorrect**         | Ensure you haven't used named imports (`import { ApinniController as Controller } from 'apinni'`) |
+| **Decorator errors**               | Confirm `@apinni/client-ts` is installed and imported correctly (`import { ApinniController } from '@apinni/client-ts'`). |
+| **Endpoints missing or incorrect**         | Ensure you haven't used named imports (`import { ApinniController as Controller } from '@apinni/client-ts'`) |
 
 ### Debugging Tips
 

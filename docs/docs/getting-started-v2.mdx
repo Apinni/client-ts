@@ -29,17 +29,17 @@ Install Apinni as a development dependency in your project:
 <Tabs groupId="package-manager">
   <TabItem value="npm" label="npm" default>
     ```bash
-    npm install apinni-ts --save-dev
+    npm install @apinni/client-ts --save-dev
     ```
   </TabItem>
   <TabItem value="yarn" label="Yarn">
     ```bash
-    yarn add -D apinni-ts
+    yarn add -D @apinni/client-ts
     ```
   </TabItem>
   <TabItem value="pnpm" label="pnpm">
     ```bash
-    pnpm add -D apinni-ts
+    pnpm add -D @apinni/client-ts
     ```
   </TabItem>
 </Tabs>
@@ -74,7 +74,7 @@ Create an `apinni.config.ts` file in your project root:
 <Tabs groupId="config-type">
   <TabItem value="ts" label="TypeScript" default>
     ```typescript title="apinni.config.ts"
-    import type { ApinniConfig } from 'apinni-ts';
+    import type { ApinniConfig } from '@apinni/client-ts';
 
     export default {
       outputPath: './types',
@@ -105,7 +105,7 @@ Create an `apinni.config.ts` file in your project root:
 Create a controller file with Apinni decorators:
 
 ```typescript title="src/controllers/user.controller.ts"
-import { ApinniController, ApinniEndpoint } from 'apinni-ts';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 interface User {
   id: string;
@@ -271,7 +271,7 @@ Run `types:watch` alongside your development server for instant type updates as 
 Customize Apinni's behavior in your config file:
 
 ```typescript title="apinni.config.ts"
-import type { ApinniConfig } from 'apinni-ts';
+import type { ApinniConfig } from '@apinni/client-ts';
 
 export default {
   // Output directory for generated types
@@ -312,8 +312,8 @@ export default {
 **Problem**: Errors about decorators not being found.
 
 **Solutions**:
-- Verify Apinni is installed: `npm list apinni-ts`
-- Check imports: `import { ApinniController } from 'apinni-ts'`
+- Verify Apinni is installed: `npm list @apinni/client-ts`
+- Check imports: `import { ApinniController } from '@apinni/client-ts'`
 - Avoid named imports with aliases (use the exact decorator names)
 - Ensure `reflect-metadata` is imported if using runtime decorators
 
