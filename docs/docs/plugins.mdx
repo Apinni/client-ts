@@ -71,7 +71,7 @@ Dependencies must be shareable plugins. Non-shareable dependencies will throw an
 Create a simple plugin that logs endpoint paths during type generation.
 
 ```ts title="src/plugins/log-paths-plugin.ts"
-import { ApinniPlugin, ShareableRegistry, ShareableContext } from 'apinni';
+import { ApinniPlugin, ShareableRegistry, ShareableContext } from '@apinni/client-ts';
 
 export const logPathsPlugin: ApinniPlugin = {
   name: 'log-paths',
@@ -99,7 +99,7 @@ export const logPathsPlugin: ApinniPlugin = {
 Create a shareable plugin that provides custom context data to dependent plugins.
 
 ```ts title="src/plugins/auth-context-plugin.ts"
-import { ShareablePlugin, ShareableRegistry, ShareableContext } from 'apinni';
+import { ShareablePlugin, ShareableRegistry, ShareableContext } from '@apinni/client-ts';
 
 export const authContextPlugin: ShareablePlugin = {
   name: 'auth-context',
@@ -128,7 +128,7 @@ Create a plugin that depends on the `auth-context` plugin and uses its shared co
 <Tabs>
   <TabItem value="dependent-plugin" label="Dependent Plugin" default>
     ```ts title="src/plugins/secure-endpoints-plugin.ts"
-    import { ApinniPlugin, ShareableContext } from 'apinni';
+    import { ApinniPlugin, ShareableContext } from '@apinni/client-ts';
     import { authContextPlugin } from './auth-context-plugin';
 
     export const secureEndpointsPlugin: ApinniPlugin = {

@@ -54,7 +54,7 @@ The `@ApinniDomain` decorator is applied at the controller level and works with 
 Group endpoints into a single domain for type generation.
 
 ```ts title="Single Domain"
-import { ApinniController, ApinniEndpoint, ApinniDomain } from 'apinni';
+import { ApinniController, ApinniEndpoint, ApinniDomain } from '@apinni/client-ts';
 
 @ApinniDomain({ domains: 'auth' })
 @ApinniController({ path: '/auth' })
@@ -78,7 +78,7 @@ class AuthController {
 Group endpoints into multiple domains for flexible type organization.
 
 ```ts title="Multiple Domains"
-import { ApinniController, ApinniEndpoint, ApinniDomain } from 'apinni';
+import { ApinniController, ApinniEndpoint, ApinniDomain } from '@apinni/client-ts';
 
 @ApinniDomain({ domains: ['auth', 'api'] })
 @ApinniController({ path: '/auth' })
@@ -104,7 +104,7 @@ Define multiple controllers grouped into domains.
 <Tabs>
   <TabItem value="multiple-endpoints" label="Multiple Endpoints" default>
     ```ts title="Multiple Endpoints with Domains"
-    import { ApinniController, ApinniEndpoint, ApinniDomain } from 'apinni';
+    import { ApinniController, ApinniEndpoint, ApinniDomain } from '@apinni/client-ts';
     import type { User } from './types';
 
     type LoginRequest = { username: string; password: string };

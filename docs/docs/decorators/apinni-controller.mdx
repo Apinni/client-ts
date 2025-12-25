@@ -65,7 +65,7 @@ The `@ApinniController` decorator is typically used with `@ApinniEndpoint` to de
 Define a controller with a single GET endpoint.
 
 ```ts title="Basic Controller"
-import { ApinniController, ApinniEndpoint } from 'apinni';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 @ApinniController({ path: '/api/users' })
 class UserController {
@@ -88,7 +88,7 @@ class UserController {
 Use a parameterized base path for multi-tenant APIs.
 
 ```ts title="Parameterized Base Path"
-import { ApinniController, ApinniEndpoint } from 'apinni';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 @ApinniController({ path: '/api/tenants/:tenantId/users' })
 class UserController {
@@ -113,7 +113,7 @@ Define multiple endpoints within a single controller.
 <Tabs>
   <TabItem value="multiple-endpoints" label="Multiple Endpoints" default>
     ```ts title="Multiple Endpoints"
-    import { ApinniController, ApinniEndpoint } from 'apinni';
+    import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
     type UserRequest = { id: string };
     type UserResponse = { id: string; name: string };

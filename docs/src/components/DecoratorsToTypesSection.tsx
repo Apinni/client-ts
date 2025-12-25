@@ -14,7 +14,7 @@ const DecoratorsToTypesSection = () => (
       <div className={styles['code-grid']}>
         <div className={styles['code-block']}>
             <CodeBlock language='typescript' title="Backend Controller with Decorators">
-            {`import { ApinniController, ApinniEndpoint } from 'apinni';
+            {`import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 type CreateUserDto = {
   name: string;

@@ -24,7 +24,7 @@ The `@ApinniDisabled` decorator excludes a class or method from the Apinni type 
 Use the `@ApinniDisabled` decorator to annotate a class or method, specifying whether to exclude it globally or for specific domains.
 
 ```ts title="Basic Syntax"
-import { ApinniDisabled } from 'apinni';
+import { ApinniDisabled } from '@apinni/client-ts';
 
 // Global exclusion
 @ApinniDisabled({ disabled: true, reason: 'Deprecated' })
@@ -71,7 +71,7 @@ The `@ApinniDisabled` decorator can be applied to a controller class (to exclude
 Exclude a specific endpoint from all type generation.
 
 ```ts title="Global Endpoint Exclusion"
-import { ApinniController, ApinniEndpoint, ApinniDisabled } from 'apinni';
+import { ApinniController, ApinniEndpoint, ApinniDisabled } from '@apinni/client-ts';
 
 @ApinniController({ path: '/api' })
 class UserController {
@@ -99,7 +99,7 @@ class UserController {
 Exclude an entire controller from type generation.
 
 ```ts title="Global Controller Exclusion"
-import { ApinniController, ApinniEndpoint, ApinniDisabled } from 'apinni';
+import { ApinniController, ApinniEndpoint, ApinniDisabled } from '@apinni/client-ts';
 
 @ApinniDisabled({ disabled: true, reason: 'Legacy controller' })
 @ApinniController({ path: '/legacy' })
@@ -123,7 +123,7 @@ Exclude an endpoint from specific domains while including it in others.
 <Tabs>
   <TabItem value="domain-specific" label="Domain-Specific Exclusion" default>
     ```ts title="Domain-Specific Endpoint Exclusion"
-    import { ApinniController, ApinniEndpoint, ApinniDomain, ApinniDisabled } from 'apinni';
+    import { ApinniController, ApinniEndpoint, ApinniDomain, ApinniDisabled } from '@apinni/client-ts';
 
     type LoginRequest = { username: string; password: string };
     type LoginResponse = { token: string };
@@ -164,7 +164,7 @@ Exclude an endpoint from specific domains while including it in others.
 Use the `'*'` wildcard to exclude an endpoint from all domains.
 
 ```ts title="Wildcard Domain Exclusion"
-import { ApinniController, ApinniEndpoint, ApinniDomain, ApinniDisabled } from 'apinni';
+import { ApinniController, ApinniEndpoint, ApinniDomain, ApinniDisabled } from '@apinni/client-ts';
 
 @ApinniDomain({ domains: ['auth', 'api'] })
 @ApinniController({ path: '/auth' })

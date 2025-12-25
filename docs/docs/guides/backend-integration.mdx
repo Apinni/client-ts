@@ -24,7 +24,7 @@ Express is a minimal and flexible Node.js web application framework. Here's how 
 
 ```typescript title="src/controllers/user.controller.ts"
 import { Router } from 'express';
-import { ApinniController, ApinniEndpoint } from 'apinni-ts';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 interface User {
   id: string;
@@ -126,7 +126,7 @@ NestJS already uses decorators for routing. You can use Apinni decorators alongs
 
 ```typescript title="src/users/users.controller.ts"
 import { Controller, Get, Post, Put, Delete, Param, Body } from '@nestjs/common';
-import { ApinniController, ApinniEndpoint } from 'apinni-ts';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 interface User {
   id: string;
@@ -235,7 +235,7 @@ Fastify is a fast and low-overhead web framework. Here's how to integrate with A
 
 ```typescript title="src/controllers/user.controller.ts"
 import { FastifyInstance } from 'fastify';
-import { ApinniController, ApinniEndpoint } from 'apinni-ts';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 interface User {
   id: string;
@@ -312,7 +312,7 @@ Hono is a small, simple, and ultrafast web framework. Here's how to use it with 
 
 ```typescript title="src/controllers/user.controller.ts"
 import { Hono } from 'hono';
-import { ApinniController, ApinniEndpoint } from 'apinni-ts';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 interface User {
   id: string;

@@ -41,7 +41,7 @@ Dependencies must be shareable plugins. Non-shareable dependencies will throw an
 Create a simple plugin that logs endpoint paths during type generation.
 
 ```ts title="Simple plugin"
-import { buildPlugin } from 'apinni';
+import { buildPlugin } from '@apinni/client-ts';
 
 const testContext = new Map<any, string>();
 
@@ -103,7 +103,7 @@ decorators defined in affected files.
 Create a shareable plugin that provides custom context data to dependent plugins.
 
 ```ts title="Shareable plugin"
-import { buildPlugin } from 'apinni';
+import { buildPlugin } from '@apinni/client-ts';
 
 const testContext = new Map<any, string>();
 
@@ -137,7 +137,7 @@ export const CustomShareablePlugin = buildPlugin({
 Create a plugin that depends on the previous `custom-shareable` plugin and uses its shared context.
 
 ```ts title="Plugin with dependencies"
-import { ApinniPlugin } from 'apinni';
+import { ApinniPlugin } from '@apinni/client-ts';
 import { CustomShareablePlugin } from './custom-shareable-plugin';
 
 const testContext = new Map<

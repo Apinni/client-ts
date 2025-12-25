@@ -343,7 +343,7 @@ import type {
   ApiAvailableMethodsProxy,
   ApiRequestProxy,
   ApiResponsesByStatusProxy,
-} from 'apinni-ts';
+} from '@apinni/client-ts';
 
 class GenericApiClient<TApi extends IApi> {
   constructor(private baseURL: string) {}
@@ -404,7 +404,7 @@ import type {
   IApi,
   ApiPathsProxy,
   ApiResponsesByStatusProxy,
-} from 'apinni-ts';
+} from '@apinni/client-ts';
 
 export class ApiClientBuilder<TApi extends IApi> {
   private baseURL: string;
@@ -459,7 +459,7 @@ import type {
   IApi,
   ApiPathsProxy,
   ApiResponsesByStatusProxy,
-} from 'apinni-ts';
+} from '@apinni/client-ts';
 
 class TenantApiClient<TApi extends IApi> {
   constructor(
@@ -500,7 +500,7 @@ import type {
   IApi,
   ApiPathsProxy,
   ApiResponsesByStatusProxy,
-} from 'apinni-ts';
+} from '@apinni/client-ts';
 
 export class ApiMockBuilder<TApi extends IApi> {
   private mocks = new Map<string, any>();
@@ -563,7 +563,7 @@ import type {
   IApi,
   ApiPathsProxy,
   ApiResponsesByStatusProxy,
-} from 'apinni-ts';
+} from '@apinni/client-ts';
 
 export class CachePlugin<TApi extends IApi> {
   private cache = new Map<string, any>();
@@ -654,7 +654,7 @@ export function createClient<TApi extends IApi>(baseURL: string) { }
 Export helper types for common patterns:
 
 ```typescript
-import type { IApi, ApiPathsProxy, ApiResponsesByStatusProxy } from 'apinni-ts';
+import type { IApi, ApiPathsProxy, ApiResponsesByStatusProxy } from '@apinni/client-ts';
 
 export type GetEndpoint<
   TApi extends IApi,
@@ -718,7 +718,7 @@ import type {
   ApiRequestProxy,
   ApiResponsesByStatusProxy,
   ApiQueryProxy,
-} from 'apinni-ts';
+} from '@apinni/client-ts';
 
 export class TypeSafeApiClient<TApi extends IApi> {
   constructor(private baseURL: string) {}

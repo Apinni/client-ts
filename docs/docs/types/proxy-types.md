@@ -8,7 +8,7 @@ Apinni’s proxy types (`IApi` and `BuildApi`) structure API definitions for typ
 
 ## Example
 ```typescript
-import { ApinniController, ApinniEndpoint } from 'apinni';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 @ApinniController({ path: '/api' })
 class UserController {

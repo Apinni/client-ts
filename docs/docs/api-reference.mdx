@@ -13,7 +13,7 @@ import Admonition from '@theme/Admonition';
 This section provides detailed documentation for Apinni's public API, including functions, types, interfaces, classes, and built-in plugins. It complements the guides for [decorators](/docs/decorators/apinni-endpoint), [plugins](/docs/plugins), and [installation](/docs/installation). Use this reference to understand the library's core components and extend Apinni with custom logic.
 
 <Admonition type="info" title="Version Note">
-This reference is based on Apinni v1.0.0 (as of September 25, 2025). For updates, check the [GitHub repository](https://github.com/apinni/apinni).
+This reference is based on Apinni v1.0.0 (as of September 25, 2025). For updates, check the [GitHub repository](https://github.com/Apinni/client-ts).
 </Admonition>
 
 ## Functions
@@ -45,7 +45,7 @@ async function runApinni(
 **Example**
 
 ```ts title="Run Apinni in Script"
-import { runApinni } from 'apinni';
+import { runApinni } from '@apinni/client-ts';
 
 await runApinni({
   includePatterns: ['src/controllers/**/*.ts'],
@@ -88,7 +88,7 @@ Error if no config file is found.
 **Example**
 
 ```ts title="Load Config"
-import { loadApinniConfig } from 'apinni';
+import { loadApinniConfig } from '@apinni/client-ts';
 
 const config = await loadApinniConfig();
 console.log(config.plugins);
@@ -117,7 +117,7 @@ The extracted value as type `T`, or `null` if not resolvable.
 **Example**
 
 ```ts title="Extract Decorator Args"
-import { extractDecoratorArgValue } from 'apinni';
+import { extractDecoratorArgValue } from '@apinni/client-ts';
 import { getDecorator } from 'ts-morph'; // Assume decorator retrieval
 
 const args = extractDecoratorArgValue<MyOptions>(getDecorator());
@@ -226,7 +226,7 @@ Singleton class for managing class and method metadata during generation.
 **Example**
 
 ```ts
-import { GenerationContext } from 'apinni';
+import { GenerationContext } from '@apinni/client-ts';
 
 const context = GenerationContext.getInstance();
 context.registerClassMetadata(MyClass, { path: '/users' });
@@ -293,7 +293,7 @@ Generates Swagger/OpenAPI documentation from endpoints.
 **Usage**
 
 ```ts
-import { SwaggerPlugin } from 'apinni';
+import { SwaggerPlugin } from '@apinni/client-ts';
 
 const config: ApinniConfig = {
   plugins: [SwaggerPlugin]
@@ -307,7 +307,7 @@ Proxies Swagger generation for custom setups.
 **Usage**
 
 ```ts
-import { ProxySwaggerPlugin } from 'apinni';
+import { ProxySwaggerPlugin } from '@apinni/client-ts';
 
 const config: ApinniConfig = {
   plugins: [ProxySwaggerPlugin]
@@ -331,7 +331,7 @@ Apinni provides decorators for defining APIs. For detailed usage, see individual
 **Example**
 
 ```ts
-import { ApinniController, ApinniEndpoint } from 'apinni';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 @ApinniController({ path: '/users' })
 class UserController {
@@ -350,5 +350,5 @@ Explore the API in a live TypeScript environment: [CodeSandbox Link](#).
 - [Plugins](/docs/plugins) – Extend Apinni with custom plugins.
 
 <Admonition type="info">
-For source code and contributions, visit the [Apinni GitHub](https://github.com/apinni/apinni). Contact the [community](https://community.apinni.dev) for support.
+For source code and contributions, visit the [Apinni GitHub](https://github.com/Apinni/client-ts). Contact the [community](https://community.apinni.dev) for support.
 </Admonition>

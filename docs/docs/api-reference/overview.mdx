@@ -160,7 +160,7 @@ interface ApinniConfig {
 **Example:**
 
 ```typescript title="apinni.config.ts"
-import type { ApinniConfig } from 'apinni-ts';
+import type { ApinniConfig } from '@apinni/client-ts';
 
 export default {
   outputPath: './types',
@@ -374,7 +374,7 @@ interface ApinniPlugin<
 **Example:**
 
 ```typescript
-import { buildPlugin } from 'apinni-ts';
+import { buildPlugin } from '@apinni/client-ts';
 
 const MyPlugin = buildPlugin({
   name: 'my-plugin',
@@ -478,7 +478,7 @@ async function runApinni(
 **Example:**
 
 ```typescript
-import { runApinni } from 'apinni-ts';
+import { runApinni } from '@apinni/client-ts';
 
 await runApinni(
   {

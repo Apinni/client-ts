@@ -56,17 +56,17 @@ Install `apinni` as a development dependency using your preferred package manage
 <Tabs groupId="package-manager">
   <TabItem value="npm" label="npm" default>
     ```sh
-    npm install apinni --save-dev
+    npm install @apinni/client-ts --save-dev
     ```
   </TabItem>
   <TabItem value="yarn" label="Yarn">
     ```sh
-    yarn add -D apinni
+    yarn add -D @apinni/client-ts
     ```
   </TabItem>
   <TabItem value="pnpm" label="pnpm">
     ```sh
-    pnpm add -D apinni
+    pnpm add -D @apinni/client-ts
     ```
   </TabItem>
 </Tabs>
@@ -96,7 +96,7 @@ Modify your `package.json` to include a `apinni` script:
 Create a basic controller using Apinni decorators to test the setup. For example:
 
 ```ts title="src/controllers/user.controller.ts"
-import { ApinniController, ApinniEndpoint } from 'apinni';
+import { ApinniController, ApinniEndpoint } from '@apinni/client-ts';
 
 @ApinniController({ path: '/api/users' })
 class UserController {
@@ -195,7 +195,7 @@ Experiment with a sample Apinni project in a live TypeScript environment: [CodeS
 |------------------------------------|--------------------------------------------------------------------------|
 | **No types generated**             | Ensure `tsconfig.json` has `experimentalDecorators` and `emitDecoratorMetadata` enabled. Check that controllers use `@ApinniController`. |
 | **Types generated in wrong directory** | Verify the `--outDir` flag or `outDir` in `apinni.config.json`.          |
-| **Decorator errors**               | Confirm `apinni` is installed and imported correctly (`import { ApinniController } from 'apinni'`). |
+| **Decorator errors**               | Confirm `@apinni/client-ts` is installed and imported correctly (`import { ApinniController } from '@apinni/client-ts'`). |
 | **Watch mode not working**         | Ensure `--watch` is added to the script or `watch: true` in the config file. |
 
 ### Debugging Tips
