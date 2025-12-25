@@ -59,8 +59,7 @@ const config: Config = {
     ],
 
     themeConfig: {
-        // Replace with your project's social card
-        image: 'img/apinni-social-card.svg',
+        image: 'img/apinni-social-card.png',
         navbar: {
             logo: {
                 alt: 'Apinni Logo',
