@@ -56,11 +56,9 @@
     "chokidar": "^4.0.3",
     "commander": "^14.0.0",
     "listr2": "^9.0.1",
-    "swagger-express-ts": "^1.1.0",
     "ts-morph": "^26.0.0"
   },
   "peerDependencies": {
-    "reflect-metadata": "^0.2.0",
     "typescript": "^5.0.0"
   },
   "devDependencies": {

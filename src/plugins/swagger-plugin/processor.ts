@@ -1,11 +1,10 @@
-import { IApiPathArgs } from 'swagger-express-ts';
-import { IApiOperationArgsBase } from 'swagger-express-ts/i-api-operation-args.base';
 import { Decorator, MethodDeclaration } from 'ts-morph';
 
 import { ShareableContext } from '@interfaces';
 import { extractDecoratorArgValue } from '@utils';
 
 import { ENDPOINT_DECORATORS } from './constants';
+import { IApiOperationArgsBase, IApiPathArgs } from './swagger';
 
 type DecoratorNames = (typeof ENDPOINT_DECORATORS)[number];
 
