@@ -1,6 +1,6 @@
 {
   "name": "@apinni/client-ts",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Type-safe API client generator with decorators for TypeScript",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

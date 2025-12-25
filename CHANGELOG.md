@@ -1,3 +1,9 @@
+## [1.0.1](https://github.com/Apinni/client-ts/compare/v1.0.0...v1.0.1) (2025-12-25)
+
+### Bug Fixes
+
+* remove extra deps ([9eea97d](https://github.com/Apinni/client-ts/commit/9eea97d5bd38a044f16b1e350b36f5f5f7102333))
+
 # 1.0.0 (2025-12-24)
 
 
