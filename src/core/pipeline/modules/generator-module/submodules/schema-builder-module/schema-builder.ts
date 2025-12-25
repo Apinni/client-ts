@@ -442,12 +442,20 @@ export class SchemaBuilderModule {
             (!targetAliasSymbol || targetAliasSymbol === aliasSymbol) &&
             (aliasSymbol || symbol);
 
+        // Check if the type is a literal (enum member access like Values.A)
+        // These should be resolved to their literal values, not references
+        const isLiteralType =
+            type.isStringLiteral() ||
+            type.isNumberLiteral() ||
+            type.isBooleanLiteral();
+
         if (
             referenceName &&
             !['__type', '__object'].includes(referenceName) &&
             !referenceName.includes('__temp__') &&
             !isBuiltInTypeSymbol(type.getSymbol()) &&
-            referenceName !== reference
+            referenceName !== reference &&
+            !isLiteralType
         ) {
             const args = type.getAliasTypeArguments();
 
@@ -623,7 +631,31 @@ export class SchemaBuilderModule {
         const allLiterals =
             filteredBoolean.length > 0 &&
             filteredBoolean.every(union => union.isLiteral());
+
         if (allLiterals) {
+            const firstLiteral = filteredBoolean[0];
+            const firstSymbol = firstLiteral.getSymbol();
+            const parentEnum = firstSymbol?.getValueDeclaration()?.getParent();
+
+            // Typescript may parse enum as union of all it types
+            if (
+                parentEnum &&
+                Node.isEnumDeclaration(parentEnum) &&
+                filteredBoolean.every(union => {
+                    const symbol = union.getSymbol();
+                    const enumDecl = symbol?.getValueDeclaration()?.getParent();
+                    return enumDecl === parentEnum;
+                }) &&
+                filteredBoolean.length === parentEnum.getMembers().length
+            ) {
+                const enumType = parentEnum.getType();
+                return this.convert({
+                    type: enumType,
+                    ...rest,
+                    node: parentEnum,
+                }) as JsonSchema;
+            }
+
             return {
                 type: 'enum',
                 values: filteredBoolean
