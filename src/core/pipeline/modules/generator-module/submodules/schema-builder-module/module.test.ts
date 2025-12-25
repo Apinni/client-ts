@@ -694,7 +694,12 @@ describe('SchemaBuilderModule', () => {
                 'test.ts',
                 `
         type Bar = string;
-        type Example = { foo: Bar };
+        enum Values {
+            A = 'a',
+            B = 'b',
+            C = 'c',
+        }
+        type Example = { foo: Bar; values?: Values; };
       `
             );
             const data = getTypeAndNode(sourceFile, 'Example');
@@ -708,8 +713,15 @@ describe('SchemaBuilderModule', () => {
             });
             expect(result.refs.Example).toEqual({
                 type: 'object',
-                properties: { foo: { type: 'string' } },
+                properties: {
+                    foo: { type: 'string' },
+                    values: { type: 'ref', name: 'Values' },
+                },
                 required: ['foo'],
+            });
+            expect(result.refs.Values).toEqual({
+                type: 'enum',
+                values: ['a', 'b', 'c'],
             });
         });
 
